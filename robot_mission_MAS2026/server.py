@@ -135,10 +135,10 @@ model_params = {
     "n_green_wastes": {
         "type": "SliderInt",
         "label": "Initial green wastes",
-        "value": 10,
-        "min": 1,
-        "max": 30,
-        "step": 1,
+        "value": 12,
+        "min": 4,
+        "max": 32,
+        "step": 4,
     },
 }
 
@@ -173,7 +173,7 @@ _initial_model = RobotMission(
     n_green_robots=3,
     n_yellow_robots=3,
     n_red_robots=3,
-    n_green_wastes=10,
+    n_green_wastes=12,
 )
 
 page = SolaraViz(

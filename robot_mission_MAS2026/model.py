@@ -69,6 +69,9 @@ class RobotMission(mesa.Model):
 
         self.disposal_pos: tuple = None  # set during grid build
 
+        # Message router: agent.unique_id → list of pending messages (FIPA-ACL style)
+        self.message_router: dict = {}
+
         # Build environment
         self._build_radioactivity()
         self._place_disposal_zone()
@@ -144,6 +147,7 @@ class RobotMission(mesa.Model):
                 robot.knowledge["disposal_pos"]    = self.disposal_pos
                 robot.knowledge["pos"]             = (x, y)
                 self.grid.place_agent(robot, (x, y))
+                self.message_router[robot.unique_id] = []
 
     # ------------------------------------------------------------------
     # Action execution — model.do()
@@ -173,6 +177,9 @@ class RobotMission(mesa.Model):
 
         elif action_type == "put_down":
             self._do_put_down(agent, action.get("waste_type"))
+
+        elif action_type == "send_message":
+            self._do_send_message(agent, action.get("recipients"), action.get("message", {}))
 
         return self._get_percepts(agent)
 
@@ -258,6 +265,38 @@ class RobotMission(mesa.Model):
             waste = WasteAgent(self, waste_type)
             self.grid.place_agent(waste, agent.pos)
 
+    def _do_send_message(self, agent, recipients, message: dict) -> None:
+        """
+        Route a FIPA-ACL-style message to one or more robots.
+
+        recipients=None  → broadcast to all robots of `to_color` (default: same color as sender).
+        recipients=[ids] → unicast / multicast to specific agent unique_ids.
+
+        The message dict may include an optional `to_color` key to specify the
+        target color for a broadcast (e.g. a GreenAgent informing YellowAgents).
+        """
+        to_color = message.get("to_color")
+
+        # Build envelope without the routing-only `to_color` field
+        envelope = {
+            "sender_id":    agent.unique_id,
+            "sender_color": agent.color,
+            "sender_pos":   agent.pos,
+        }
+        for k, v in message.items():
+            if k != "to_color":
+                envelope[k] = v
+
+        if recipients is None:
+            target_color = to_color if to_color else agent.color
+            for a in self.agents:
+                if hasattr(a, "color") and a.color == target_color and a is not agent:
+                    self.message_router.setdefault(a.unique_id, []).append(envelope)
+        else:
+            for rid in recipients:
+                if rid in self.message_router:
+                    self.message_router[rid].append(envelope)
+
     # ------------------------------------------------------------------
     # Percept generation
     # ------------------------------------------------------------------
@@ -311,6 +350,10 @@ class RobotMission(mesa.Model):
                 "robots":        robots,
                 "is_disposal":   is_disposal,
             }
+
+        # Deliver pending mailbox messages (cleared after delivery)
+        percepts["__mailbox__"] = list(self.message_router.get(agent.unique_id, []))
+        self.message_router[agent.unique_id] = []
 
         return percepts
 

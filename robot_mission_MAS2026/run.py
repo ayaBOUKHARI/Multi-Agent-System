@@ -16,7 +16,7 @@ from model import RobotMission
 
 
 def run_simulation(
-    steps: int          = 150,
+    steps: int          = 300,
     width: int          = 15,
     height: int         = 10,
     n_green_robots: int = 3,
@@ -100,13 +100,13 @@ def plot_results(model: RobotMission) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Robot Mission simulation")
-    parser.add_argument("--steps",    type=int, default=150,  help="Number of simulation steps")
+    parser.add_argument("--steps",    type=int, default=300,  help="Number of simulation steps")
     parser.add_argument("--width",    type=int, default=15,   help="Grid width (multiple of 3)")
     parser.add_argument("--height",   type=int, default=10,   help="Grid height")
     parser.add_argument("--green",    type=int, default=3,    help="Number of green robots")
     parser.add_argument("--yellow",   type=int, default=3,    help="Number of yellow robots")
     parser.add_argument("--red",      type=int, default=3,    help="Number of red robots")
-    parser.add_argument("--wastes",   type=int, default=10,   help="Initial green waste count")
+    parser.add_argument("--wastes",   type=int, default=12,   help="Initial green waste count (use multiples of 4 for full disposal)")
     parser.add_argument("--seed",     type=int, default=None, help="Random seed")
     parser.add_argument("--no-plot",  action="store_true",    help="Skip chart display")
     args = parser.parse_args()
