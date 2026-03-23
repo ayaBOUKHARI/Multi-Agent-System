@@ -1,33 +1,59 @@
-# groupe 18 : Aya Boukhari, Ikram Firdaous
-# created on 16/03/2026
+# Group: X | Date: 2026-03-20 | Members: (à compléter)
+# objects.py — Passive agents without behaviors
 
-import mesa
 import random
+import mesa
 
-class Radioactivity(mesa.Agent):
-    def __init__(self, unique_id, model, zone):
-        super().__init__(unique_id, model)
+
+class RadioactivityAgent(mesa.Agent):
+    """
+    Passive agent placed in every cell to encode the zone and its radioactivity level.
+    - zone 1 (z1): low radioactivity  [0.00, 0.33)
+    - zone 2 (z2): medium radioactivity [0.33, 0.66)
+    - zone 3 (z3): high radioactivity  [0.66, 1.00]
+    Robot agents read this to know which zone they are in.
+    """
+
+    def __init__(self, model: mesa.Model, zone: int) -> None:
+        super().__init__(model)
         self.zone = zone
-        if zone == 'z1':
-            self.radioactivity = random.uniform(0, 0.33)         
-        if zone == 'z2':
+        if zone == 1:
+            self.radioactivity = random.uniform(0.00, 0.33)
+        elif zone == 2:
             self.radioactivity = random.uniform(0.33, 0.66)
-        if zone == 'z3':
-            self.radioactivity = random.uniform(0.66, 1.0)
-    def step(self):
-        pass
+        else:  # zone == 3
+            self.radioactivity = random.uniform(0.66, 1.00)
 
-class Waste(mesa.Agent):
-    def __init__(self, unique_id, model, waste_type):
-        super().__init__(unique_id, model)
-        self.waste_type = waste_type  # 'green', 'yellow', ou 'red'
-    
-    def step(self):
-        pass
+    def step(self) -> None:
+        pass  # No behavior
+
 
 class WasteDisposalZone(mesa.Agent):
-    def __init__(self, unique_id, model):
-        super().__init__(unique_id, model)
-    
-    def step(self):
-        pass
+    """
+    Passive agent marking the waste disposal cell (easternmost zone, z3).
+    Red robots must deliver red waste here; once deposited, waste is 'put away'.
+    """
+
+    def __init__(self, model: mesa.Model) -> None:
+        super().__init__(model)
+
+    def step(self) -> None:
+        pass  # No behavior
+
+
+class WasteAgent(mesa.Agent):
+    """
+    Passive agent representing a piece of waste on the grid.
+    waste_type ∈ {"green", "yellow", "red"}
+    """
+
+    VALID_TYPES = {"green", "yellow", "red"}
+
+    def __init__(self, model: mesa.Model, waste_type: str = "green") -> None:
+        super().__init__(model)
+        if waste_type not in self.VALID_TYPES:
+            raise ValueError(f"Invalid waste_type '{waste_type}'. Must be one of {self.VALID_TYPES}")
+        self.waste_type = waste_type
+
+    def step(self) -> None:
+        pass  # No behavior
