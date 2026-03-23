@@ -1,7 +1,7 @@
 # Robot Mission — Radioactive Waste Collection MAS
 ### Multi-Agent Systems Project 2026
 
-> **Group:** X — Members: *(à compléter)*
+> # Group: 18 | Date: 2026-03-16 | Members: Ikram Firdaous, Aya Boukhari , Ghiles Kemiche
 > **Framework:** Mesa 3.5 · Python · SolaraViz
 
 ---
@@ -9,10 +9,10 @@
 ## Table of Contents
 
 1. [Problem Statement](#1-problem-statement)
-2. [System Scope (Lecture 2)](#2-system-scope)
-3. [Agent Architecture (Lecture 1)](#3-agent-architecture)
+2. [System Scope](#2-system-scope)
+3. [Agent Architecture](#3-agent-architecture)
 4. [Behavioral Strategies](#4-behavioral-strategies)
-5. [Communication Design (Lecture 3)](#5-communication-design)
+5. [Communication Design](#5-communication-design)
 6. [Evaluation Criteria & Metrics](#6-evaluation-criteria--metrics)
 7. [Results](#7-results)
 8. [How to Run](#8-how-to-run)
