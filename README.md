@@ -30,8 +30,6 @@ Radioactive waste has been scattered across a hostile environment. The environme
 
 ## 2. System Scope
 
-*(Lecture 2, slides 9–15 and 29–33)*
-
 ### 2.1 Environment
 
 | Property | Value |
@@ -98,8 +96,6 @@ With N=10: 5 yellow (odd!) → 2 red → 2 disposed. **1 yellow waste is irrecov
 ---
 
 ## 3. Agent Architecture
-
-*(Lecture 1, slides 41, 47, 62–69)*
 
 ### 3.1 Agent Type: Deliberative with Reactive Fallback
 
