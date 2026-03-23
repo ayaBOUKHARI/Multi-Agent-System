@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Robot Mission Simulation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d1a;
+      --surface:   rgba(255,255,255,0.045);
+      --border:    rgba(255,255,255,0.08);
+      --text:      #e2e2f0;
+      --muted:     #7070a0;
+      --green:     #00e676;
+      --yellow:    #ffd740;
+      --red:       #ff5252;
+      --purple:    #b388ff;
+      --blue:      #64b5f6;
+      --accent:    #7c4dff;
+      --radius:    14px;
+      --shadow:    0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .app {
+      display: grid;
+      height: 100vh;
+      grid-template-rows: 56px 1fr;
+      grid-template-columns: 1fr 320px;
+      grid-template-areas:
+        "header  header"
+        "main    sidebar";
+      gap: 0;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    header {
+      grid-area: header;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    .header-title .icon { font-size: 22px; }
+
+    .header-stats {
+      display: flex;
+      gap: 20px;
+      font-size: 13px;
+    }
+
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-green  { background: var(--green);  box-shadow: 0 0 6px var(--green); }
+    .dot-yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+    .dot-red    { background: var(--red);    box-shadow: 0 0 6px var(--red); }
+    .dot-purple { background: var(--purple); box-shadow: 0 0 6px var(--purple); }
+
+    /* ── Main ─────────────────────────────────────────────────────── */
+    main {
+      grid-area: main;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px 14px 14px 18px;
+      overflow: hidden;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(8px);
+    }
+
+    /* Grid canvas card */
+    .grid-card {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 10px;
+    }
+
+    .card-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    #gridCanvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+      cursor: default;
+      display: block;
+    }
+
+    /* Chart card */
+    .chart-card {
+      height: 180px;
+      padding: 10px 14px 8px;
+    }
+
+    #wasteChart { width: 100% !important; height: 100% !important; }
+
+    /* ── Sidebar ──────────────────────────────────────────────────── */
+    aside {
+      grid-area: sidebar;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 18px 14px 0;
+      overflow-y: auto;
+    }
+
+    aside::-webkit-scrollbar { width: 4px; }
+    aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* Controls card */
+    .controls-card { padding: 16px; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* Sliders */
+    .param-row {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 14px;
+    }
+
+    .param-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+
+    .param-label span:first-child { color: var(--text); }
+
+    .param-value {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      min-width: 24px;
+      text-align: right;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.1);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+
+    input[type=range].green-track::-webkit-slider-thumb  { background: var(--green);  box-shadow: 0 0 8px var(--green); }
+    input[type=range].yellow-track::-webkit-slider-thumb { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+    input[type=range].red-track::-webkit-slider-thumb    { background: var(--red);    box-shadow: 0 0 8px var(--red); }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0 16px;
+    }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 8px; margin-bottom: 14px; }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn:hover  { opacity: 0.85; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(124,77,255,0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.07);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* Speed row */
+    .speed-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+    .speed-row input { flex: 1; }
+
+    /* Legend card */
+    .legend-card { padding: 14px 16px; }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12.5px;
+      margin-bottom: 9px;
+      color: var(--text);
+    }
+
+    .legend-icon {
+      width: 22px; height: 22px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .swatch {
+      width: 14px; height: 14px;
+      border-radius: 3px;
+    }
+
+    /* Step badge */
+    .step-badge {
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+    }
+
+    /* Status banner */
+    #statusBanner {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(0,230,118,0.12);
+      border: 1px solid rgba(0,230,118,0.3);
+      color: var(--green);
+    }
+
+    #statusBanner.show { display: flex; }
+
+    /* Zone indicator dots */
+    .zone-strip {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+    .zone-badge {
+      flex: 1;
+      padding: 4px 0;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    .zone1 { background: rgba(0,200,80,0.15);  color: #4caf50; border: 1px solid rgba(76,175,80,0.25); }
+    .zone2 { background: rgba(255,200,0,0.12); color: #ffb300; border: 1px solid rgba(255,179,0,0.25); }
+    .zone3 { background: rgba(255,60,60,0.12); color: #ef5350; border: 1px solid rgba(239,83,80,0.25); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <header>
+    <div class="header-title">
+      <span class="icon">🤖</span>
+      <span>Robot Mission &mdash; Multi-Agent Simulation</span>
+    </div>
+    <div class="header-stats">
+      <div class="stat-pill"><div class="dot dot-green"></div> Green <strong id="hGreen">—</strong></div>
+      <div class="stat-pill"><div class="dot dot-yellow"></div> Yellow <strong id="hYellow">—</strong></div>
+      <div class="stat-pill"><div class="dot dot-red"></div> Red <strong id="hRed">—</strong></div>
+      <div class="stat-pill"><div class="dot dot-purple"></div> Disposed <strong id="hDisposed">—</strong></div>
+    </div>
+    <div class="step-badge">Step <span id="hStep">—</span></div>
+  </header>
+
+  <!-- ── Main (grid + chart) ────────────────────────────────────── -->
+  <main>
+    <div class="card grid-card">
+      <div class="card-label">Environment Grid</div>
+      <canvas id="gridCanvas"></canvas>
+    </div>
+    <div class="card chart-card">
+      <canvas id="wasteChart"></canvas>
+    </div>
+  </main>
+
+  <!-- ── Sidebar ────────────────────────────────────────────────── -->
+  <aside>
+
+    <!-- Controls -->
+    <div class="card controls-card">
+      <div class="section-title">Parameters</div>
+
+      <div class="param-row">
+        <div class="param-label">
+          <span>🟢 Green robots</span>
+          <span class="param-value" id="vGreen">3</span>
+        </div>
+        <input type="range" class="green-track"  id="sGreen"  min="1" max="10" value="3">
+      </div>
+
+      <div class="param-row">
+        <div class="param-label">
+          <span>🟡 Yellow robots</span>
+          <span class="param-value" id="vYellow">3</span>
+        </div>
+        <input type="range" class="yellow-track" id="sYellow" min="1" max="10" value="3">
+      </div>
+
+      <div class="param-row">
+        <div class="param-label">
+          <span>🔴 Red robots</span>
+          <span class="param-value" id="vRed">3</span>
+        </div>
+        <input type="range" class="red-track"    id="sRed"    min="1" max="10" value="3">
+      </div>
+
+      <div class="param-row">
+        <div class="param-label">
+          <span>🗑️ Green wastes</span>
+          <span class="param-value" id="vWaste">12</span>
+        </div>
+        <input type="range" id="sWaste" min="4" max="32" step="4" value="12">
+      </div>
+
+      <div class="param-row">
+        <div class="param-label">
+          <span>🌱 Random seed</span>
+          <span class="param-value" id="vSeed">42</span>
+        </div>
+        <input type="range" id="sSeed" min="0" max="99" value="42">
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary"    id="btnStart">▶ Start</button>
+        <button class="btn btn-secondary"  id="btnPause" disabled>⏸ Pause</button>
+      </div>
+
+      <div class="speed-row">
+        <span>🐢</span>
+        <input type="range" id="sSpeed" min="1" max="30" value="10">
+        <span>🐇</span>
+        <span style="margin-left:4px;color:var(--text);font-weight:600" id="vSpeed">10 fps</span>
+      </div>
+
+      <div id="statusBanner" style="margin-top:12px">✅ All waste disposed!</div>
+    </div>
+
+    <!-- Zone legend -->
+    <div class="card legend-card">
+      <div class="section-title">Legend</div>
+
+      <div class="zone-strip">
+        <div class="zone-badge zone1">z1 — low ☢️</div>
+        <div class="zone-badge zone2">z2 — medium ☢️</div>
+        <div class="zone-badge zone3">z3 — high ☢️</div>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="legend-item">
+          <div class="legend-icon" style="color:#00e676">▲</div>
+          <span style="color:#00e676">Green robot</span>
+          <span style="color:var(--muted);font-size:11px;margin-left:auto">zone z1</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon" style="color:#ffd740">★</div>
+          <span style="color:#ffd740">Yellow robot</span>
+          <span style="color:var(--muted);font-size:11px;margin-left:auto">z1 + z2</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon" style="color:#ff5252">⬟</div>
+          <span style="color:#ff5252">Red robot</span>
+          <span style="color:var(--muted);font-size:11px;margin-left:auto">all zones</span>
+        </div>
+        <div class="legend-item">
+          <div class="swatch" style="background:#1db954"></div>
+          <span>Green waste</span>
+        </div>
+        <div class="legend-item">
+          <div class="swatch" style="background:#f0c040"></div>
+          <span>Yellow waste</span>
+        </div>
+        <div class="legend-item">
+          <div class="swatch" style="background:#e03030"></div>
+          <span>Red waste</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon" style="color:#b388ff">⬦</div>
+          <span>Disposal zone</span>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+<script>
+// ── Constants ────────────────────────────────────────────────────────────────
+const ZONE_BG   = ["#0d2b0d", "#2b2b08", "#2b0808"];
+const ROBOT_CLR = {green:"#00e676", yellow:"#ffd740", red:"#ff5252"};
+const WASTE_CLR = {green:"#1db954", yellow:"#f0c040", red:"#e03030"};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let simState  = null;
+let running   = false;
+let animTimer = null;
+let history   = {green:[], yellow:[], red:[], disposed:[]};
+
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const canvas   = document.getElementById("gridCanvas");
+const ctx      = canvas.getContext("2d");
+
+const btnStart = document.getElementById("btnStart");
+const btnPause = document.getElementById("btnPause");
+const banner   = document.getElementById("statusBanner");
+
+// Slider wiring
+const sliders = [
+  ["sGreen",  "vGreen"],
+  ["sYellow", "vYellow"],
+  ["sRed",    "vRed"],
+  ["sWaste",  "vWaste"],
+  ["sSeed",   "vSeed"],
+];
+sliders.forEach(([sid, vid]) => {
+  const s = document.getElementById(sid);
+  const v = document.getElementById(vid);
+  s.addEventListener("input", () => v.textContent = s.value);
+});
+
+const sSpeed = document.getElementById("sSpeed");
+const vSpeed = document.getElementById("vSpeed");
+sSpeed.addEventListener("input", () => {
+  vSpeed.textContent = sSpeed.value + " fps";
+  if (running) restartLoop();
+});
+
+// ── Chart.js setup ───────────────────────────────────────────────────────────
+const chartCtx = document.getElementById("wasteChart").getContext("2d");
+const wasteChart = new Chart(chartCtx, {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [
+      { label:"Green",    data:[], borderColor:"#1db954", backgroundColor:"rgba(29,185,84,0.12)",
+        borderWidth:2, pointRadius:0, fill:true, tension:0.3 },
+      { label:"Yellow",   data:[], borderColor:"#f0c040", backgroundColor:"rgba(240,192,64,0.12)",
+        borderWidth:2, pointRadius:0, fill:true, tension:0.3 },
+      { label:"Red",      data:[], borderColor:"#e03030", backgroundColor:"rgba(224,48,48,0.12)",
+        borderWidth:2, pointRadius:0, fill:true, tension:0.3 },
+      { label:"Disposed", data:[], borderColor:"#b388ff", backgroundColor:"transparent",
+        borderWidth:2, pointRadius:0, fill:false, tension:0.3, borderDash:[5,3] },
+    ],
+  },
+  options: {
+    animation: false,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels:{ color:"#a0a0c0", font:{size:11}, boxWidth:12 } }
+    },
+    scales: {
+      x: { ticks:{color:"#606080", font:{size:9}, maxTicksLimit:10},
+           grid:{color:"rgba(255,255,255,0.05)"} },
+      y: { ticks:{color:"#606080", font:{size:9}},
+           grid:{color:"rgba(255,255,255,0.05)"}, min:0 },
+    },
+  },
+});
+
+function pushHistory(s) {
+  history.green.push(s.green_count);
+  history.yellow.push(s.yellow_count);
+  history.red.push(s.red_count);
+  history.disposed.push(s.disposed);
+
+  const labels = history.green.map((_,i) => i);
+  wasteChart.data.labels                = labels;
+  wasteChart.data.datasets[0].data      = history.green;
+  wasteChart.data.datasets[1].data      = history.yellow;
+  wasteChart.data.datasets[2].data      = history.red;
+  wasteChart.data.datasets[3].data      = history.disposed;
+  wasteChart.update("none");
+}
+
+// ── Header stats ─────────────────────────────────────────────────────────────
+function updateHeader(s) {
+  document.getElementById("hGreen").textContent   = s.green_count;
+  document.getElementById("hYellow").textContent  = s.yellow_count;
+  document.getElementById("hRed").textContent     = s.red_count;
+  document.getElementById("hDisposed").textContent= s.disposed;
+  document.getElementById("hStep").textContent    = s.step;
+}
+
+// ── Canvas rendering ─────────────────────────────────────────────────────────
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width  = rect.width  - 20;
+  canvas.height = rect.height - 36;
+}
+
+function drawTriangle(x, y, size, color, glow) {
+  const h = size * 0.866;
+  ctx.save();
+  if (glow) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur  = 10;
+  }
+  ctx.fillStyle   = color;
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth   = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(x,          y - h * 0.6);
+  ctx.lineTo(x - size/2, y + h * 0.4);
+  ctx.lineTo(x + size/2, y + h * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawStar(cx, cy, r, color, glow) {
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = glow ? 10 : 14;
+  ctx.fillStyle   = color;
+  if (glow) {
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
+    ctx.lineWidth   = 0.5;
+  }
+  const pts = 5;
+  const outer = r, inner = r * 0.4;
+  ctx.beginPath();
+  for (let i = 0; i < 2*pts; i++) {
+    const rad = (i * Math.PI / pts) - Math.PI/2;
+    const d   = i % 2 === 0 ? outer : inner;
+    i === 0 ? ctx.moveTo(cx + d*Math.cos(rad), cy + d*Math.sin(rad))
+            : ctx.lineTo(cx + d*Math.cos(rad), cy + d*Math.sin(rad));
+  }
+  ctx.closePath();
+  ctx.fill();
+  if (glow) ctx.stroke();
+  ctx.restore();
+}
+
+function drawPentagon(cx, cy, r, color, glow) {
+  ctx.save();
+  if (glow) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur  = 10;
+  }
+  ctx.fillStyle   = color;
+  ctx.strokeStyle = "rgba(255,255,255,0.5)";
+  ctx.lineWidth   = 0.5;
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawDiamond(cx, cy, r, color) {
+  ctx.save();
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = 14;
+  ctx.fillStyle   = color;
+  ctx.strokeStyle = "rgba(255,255,255,0.4)";
+  ctx.lineWidth   = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(cx,         cy - r);
+  ctx.lineTo(cx + r*0.7, cy);
+  ctx.lineTo(cx,         cy + r);
+  ctx.lineTo(cx - r*0.7, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function renderGrid(s) {
+  if (!s || !s.ready) return;
+  resizeCanvas();
+
+  const W = canvas.width, H = canvas.height;
+  const COLS = s.width, ROWS = s.height;
+  const cw = W / COLS, ch = H / ROWS;
+
+  // Background
+  ctx.fillStyle = "#111118";
+  ctx.fillRect(0, 0, W, H);
+
+  // Zone strips
+  const zones = [
+    [0,           s.z1_end,     ZONE_BG[0]],
+    [s.z1_end+1,  s.z2_end,     ZONE_BG[1]],
+    [s.z2_end+1,  COLS-1,       ZONE_BG[2]],
+  ];
+  zones.forEach(([x0, x1, col]) => {
+    ctx.fillStyle = col;
+    ctx.fillRect(x0*cw, 0, (x1-x0+1)*cw, H);
+  });
+
+  // Zone labels
+  const zLabels = [
+    [(s.z1_end/2)        * cw + cw/2, "z1"],
+    [((s.z1_end+s.z2_end)/2+0.5)*cw, "z2"],
+    [((s.z2_end+COLS-1)/2+0.5)*cw,   "z3"],
+  ];
+  ctx.font = `bold ${Math.max(10,cw*0.38)}px Inter`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  zLabels.forEach(([px, lbl]) => {
+    ctx.fillStyle = "rgba(255,255,255,0.12)";
+    ctx.fillText(lbl, px, 4);
+  });
+
+  // Grid lines
+  ctx.strokeStyle = "rgba(255,255,255,0.05)";
+  ctx.lineWidth = 0.5;
+  for (let c = 1; c < COLS; c++) {
+    ctx.beginPath(); ctx.moveTo(c*cw,0); ctx.lineTo(c*cw,H); ctx.stroke();
+  }
+  for (let r = 1; r < ROWS; r++) {
+    ctx.beginPath(); ctx.moveTo(0,r*ch); ctx.lineTo(W,r*ch); ctx.stroke();
+  }
+
+  // Zone borders
+  ctx.strokeStyle = "rgba(255,255,255,0.15)";
+  ctx.lineWidth = 1.5;
+  [s.z1_end+1, s.z2_end+1].forEach(col => {
+    ctx.beginPath();
+    ctx.moveTo(col*cw, 0); ctx.lineTo(col*cw, H);
+    ctx.stroke();
+  });
+
+  // Disposal zone — ⬦ diamond (mediumpurple)
+  const dx = s.disposal.x, dy = s.disposal.y;
+  const dpx = (dx + 0.5)*cw, dpy = H - (dy + 0.5)*ch;
+  drawDiamond(dpx, dpy, Math.min(cw,ch)*0.38, "#b388ff");
+
+  // Waste
+  s.wastes.forEach(w => {
+    const px = (w.x + 0.5)*cw, py = H - (w.y + 0.5)*ch;
+    const sz = Math.min(cw, ch) * 0.38;
+    ctx.save();
+    ctx.shadowColor = WASTE_CLR[w.type];
+    ctx.shadowBlur  = 6;
+    ctx.fillStyle   = WASTE_CLR[w.type];
+    ctx.fillRect(px - sz/2, py - sz/2, sz, sz);
+    ctx.restore();
+  });
+
+  // Robots — ▲ green, ★ yellow, ⬟ red
+  s.robots.forEach(r => {
+    const px = (r.x + 0.5)*cw, py = H - (r.y + 0.5)*ch;
+    const sz = Math.min(cw,ch)*0.48;
+    if (r.type === "green") {
+      drawTriangle(px, py, sz, ROBOT_CLR[r.type], true);
+    } else if (r.type === "yellow") {
+      drawStar(px, py, sz * 0.52, ROBOT_CLR[r.type], true);
+    } else {
+      drawPentagon(px, py, sz * 0.46, ROBOT_CLR[r.type], true);
+    }
+
+    // Inventory label
+    if (r.inventory && r.inventory.length) {
+      ctx.save();
+      ctx.font = `bold ${Math.max(8, sz*0.55)}px Inter`;
+      ctx.fillStyle   = "#fff";
+      ctx.textAlign   = "center";
+      ctx.textBaseline = "bottom";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur  = 3;
+      ctx.fillText(r.inventory.join(""), px, py - sz*0.6);
+      ctx.restore();
+    }
+  });
+}
+
+// ── API calls ────────────────────────────────────────────────────────────────
+async function apiReset() {
+  const body = {
+    green_robots:  +document.getElementById("sGreen").value,
+    yellow_robots: +document.getElementById("sYellow").value,
+    red_robots:    +document.getElementById("sRed").value,
+    green_wastes:  +document.getElementById("sWaste").value,
+    seed:          +document.getElementById("sSeed").value,
+  };
+  const r = await fetch("/api/reset", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(body),
+  });
+  return r.json();
+}
+
+async function apiStep() {
+  const r = await fetch("/api/step", {method:"POST"});
+  return r.json();
+}
+
+// ── Animation loop ───────────────────────────────────────────────────────────
+function restartLoop() {
+  clearInterval(animTimer);
+  const fps = +sSpeed.value;
+  animTimer = setInterval(tick, Math.round(1000 / fps));
+}
+
+async function tick() {
+  if (!running) return;
+  const s = await apiStep();
+  simState = s;
+  renderGrid(s);
+  pushHistory(s);
+  updateHeader(s);
+
+  if (s.finished) {
+    stopSim();
+    banner.classList.add("show");
+  }
+}
+
+function stopSim() {
+  running = false;
+  clearInterval(animTimer);
+  btnStart.textContent = "↺ Restart";
+  btnPause.disabled = true;
+  btnPause.textContent = "⏸ Pause";
+}
+
+// ── Button handlers ──────────────────────────────────────────────────────────
+btnStart.addEventListener("click", async () => {
+  clearInterval(animTimer);
+  banner.classList.remove("show");
+  history = {green:[], yellow:[], red:[], disposed:[]};
+
+  const s = await apiReset();
+  simState = s;
+  renderGrid(s);
+  pushHistory(s);
+  updateHeader(s);
+
+  running = true;
+  btnStart.textContent = "↺ Restart";
+  btnPause.disabled    = false;
+  btnPause.textContent = "⏸ Pause";
+  restartLoop();
+});
+
+btnPause.addEventListener("click", () => {
+  if (running) {
+    running = false;
+    clearInterval(animTimer);
+    btnPause.textContent = "▶ Resume";
+  } else {
+    running = true;
+    btnPause.textContent = "⏸ Pause";
+    restartLoop();
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener("resize", () => { if (simState) renderGrid(simState); });
+
+// Draw initial state on load
+(async () => {
+  const s = await apiReset();
+  simState = s;
+  renderGrid(s);
+  pushHistory(s);
+  updateHeader(s);
+})();
+</script>
+</body>
+</html>

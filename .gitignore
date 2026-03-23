@@ -1,3 +1,104 @@
 venv/
-robot_mission_MAS2026/
+robot_mission_MAS2026-1/
 .claude/
+# =========================
+# OS-generated files
+# =========================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+*.env
+
+# =========================
+# Dependency directories
+# =========================
+node_modules/
+vendor/
+
+# =========================
+# Python
+# =========================
+__pycache__/
+18_robot_mission_MAS2026/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+*.sqlite3
+venv/
+env/
+.venv/
+
+# =========================
+# Java / JVM
+# =========================
+*.class
+*.jar
+*.war
+*.ear
+target/
+.gradle/
+
+# =========================
+# C / C++
+# =========================
+*.o
+*.out
+*.a
+*.so
+*.exe
+
+# =========================
+# IDEs and editors
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+
+# =========================
+# Mac / Linux temp files
+# =========================
+*~
+.cache/
+.tmp/
+
+# =========================
+# Build outputs
+# =========================
+dist/
+build/
+out/
+coverage/
+
+# =========================
+# Test / coverage
+# =========================
+coverage/
+*.lcov
+
+# =========================
+# Misc
+# =========================
+*.bak
+*.tmp
+*.temp
