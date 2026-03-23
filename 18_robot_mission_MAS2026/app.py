@@ -17,9 +17,42 @@ from agents import GreenAgent, YellowAgent, RedAgent
 
 app = Flask(__name__)
 
-_model = None   # current simulation instance
-_steps = 0      # manual step counter (model.step() does not auto-increment)
-MAX_STEPS = 1000
+_model          = None   # current simulation instance
+_steps          = 0      # manual step counter
+_msg_log        = []     # rolling message log (last 60 entries)
+_total_messages = 0      # total messages sent since last reset
+MAX_STEPS       = 1000
+MSG_LOG_SIZE    = 60
+
+
+# ── Message interception ──────────────────────────────────────────────────────
+
+def _wrap_send_message(model):
+    """Monkey-patch model._do_send_message to capture all outgoing messages."""
+    original = model._do_send_message
+
+    def _intercepted(agent, recipients, message):
+        global _msg_log, _total_messages
+        _total_messages += 1
+        content = message.get("content", {})
+        entry = {
+            "step":  _steps,
+            "from":  f"{agent.color[0].upper()}#{agent.unique_id}",
+            "color": agent.color,
+            "perf":  message.get("performative", "?"),
+            "type":  content.get("type", "?"),
+            "pos":   content.get("pos"),   # [x, y] when present (waste_at / has_unpaired)
+            "waste": content.get("waste"), # waste type when present
+            "to":    "broadcast" if recipients is None
+                     else (message.get("to_color", agent.color) + " broadcast"
+                           if recipients is None else f"#{recipients[0]}"),
+        }
+        _msg_log.append(entry)
+        if len(_msg_log) > MSG_LOG_SIZE:
+            _msg_log.pop(0)
+        return original(agent, recipients, message)
+
+    model._do_send_message = _intercepted
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -40,27 +73,32 @@ def _serialize():
             elif isinstance(agent, (GreenAgent, YellowAgent, RedAgent)):
                 rtype = ("green"  if isinstance(agent, GreenAgent)  else
                          "yellow" if isinstance(agent, YellowAgent) else "red")
-                # inventory holds strings (e.g. "green", "yellow", "red")
+                partner_pos = agent.knowledge.get("partner_pos")
                 robots.append({
                     "x": x, "y": y, "type": rtype,
-                    "inventory": [w[0].upper() for w in agent.knowledge["inventory"]],
+                    "id":           agent.unique_id,
+                    "inventory":    [w[0].upper() for w in agent.knowledge["inventory"]],
+                    "handoff_role": agent.knowledge.get("handoff_role"),
+                    "partner_pos":  list(partner_pos) if partner_pos else None,
                 })
 
     return {
-        "ready":        True,
-        "step":         _steps,
-        "width":        m.width,
-        "height":       m.height,
-        "z1_end":       m.z1_max_x,   # renamed for frontend compatibility
-        "z2_end":       m.z2_max_x,   # renamed for frontend compatibility
-        "disposal":     {"x": m.disposal_pos[0], "y": m.disposal_pos[1]},
-        "wastes":       wastes,
-        "robots":       robots,
-        "green_count":  m._count_waste("green"),
-        "yellow_count": m._count_waste("yellow"),
-        "red_count":    m._count_waste("red"),
-        "disposed":     m.disposed_count,
-        "finished":     m.is_done() or _steps >= MAX_STEPS,
+        "ready":          True,
+        "step":           _steps,
+        "width":          m.width,
+        "height":         m.height,
+        "z1_end":         m.z1_max_x,
+        "z2_end":         m.z2_max_x,
+        "disposal":       {"x": m.disposal_pos[0], "y": m.disposal_pos[1]},
+        "wastes":         wastes,
+        "robots":         robots,
+        "green_count":    m._count_waste("green"),
+        "yellow_count":   m._count_waste("yellow"),
+        "red_count":      m._count_waste("red"),
+        "disposed":       m.disposed_count,
+        "finished":       m.is_done() or _steps >= MAX_STEPS,
+        "total_messages": _total_messages,
+        "msg_log":        list(reversed(_msg_log[-20:])),  # last 20, newest first
     }
 
 
@@ -73,7 +111,7 @@ def index():
 
 @app.route("/api/reset", methods=["POST"])
 def reset():
-    global _model, _steps
+    global _model, _steps, _total_messages
     d = request.get_json(silent=True) or {}
     _model = RobotMission(
         width           = 15,
@@ -84,7 +122,10 @@ def reset():
         n_green_wastes  = max(4, int(d.get("green_wastes",  12))),
         seed            = int(d.get("seed", 42)),
     )
+    _wrap_send_message(_model)
     _steps = 0
+    _msg_log.clear()
+    _total_messages = 0
     return jsonify(_serialize())
 
 

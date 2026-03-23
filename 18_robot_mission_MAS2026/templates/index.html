@@ -339,6 +339,53 @@
     .zone1 { background: rgba(0,200,80,0.15);  color: #4caf50; border: 1px solid rgba(76,175,80,0.25); }
     .zone2 { background: rgba(255,200,0,0.12); color: #ffb300; border: 1px solid rgba(255,179,0,0.25); }
     .zone3 { background: rgba(255,60,60,0.12); color: #ef5350; border: 1px solid rgba(239,83,80,0.25); }
+
+    /* ── Comm panel ───────────────────────────────────────────────── */
+    .comm-card { padding: 14px 16px; }
+
+    .comm-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+
+    .comm-badge {
+      background: rgba(124,77,255,0.15);
+      border: 1px solid rgba(124,77,255,0.3);
+      border-radius: 12px;
+      padding: 3px 10px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    #msgLog {
+      max-height: 160px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    #msgLog::-webkit-scrollbar { width: 3px; }
+    #msgLog::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .msg-entry {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 3px 6px;
+      border-radius: 5px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+    }
+
+    .msg-step  { color: var(--muted); min-width: 32px; font-variant-numeric: tabular-nums; }
+    .msg-from  { font-weight: 700; min-width: 36px; }
+    .msg-type  { color: var(--text); flex: 1; }
   </style>
 </head>
 <body>
@@ -432,6 +479,18 @@
       </div>
 
       <div id="statusBanner" style="margin-top:12px">✅ All waste disposed!</div>
+    </div>
+
+    <!-- Communication panel -->
+    <div class="card comm-card">
+      <div class="section-title">📡 Messages</div>
+      <div class="comm-stats">
+        <span style="color:var(--muted)">Total sent:</span>
+        <span class="comm-badge" id="totalMsgs">0</span>
+      </div>
+      <div id="msgLog">
+        <div style="color:var(--muted);font-size:11px;padding:4px 0">No messages yet</div>
+      </div>
     </div>
 
     <!-- Zone legend -->
@@ -696,9 +755,9 @@ function renderGrid(s) {
 
   // Zone labels
   const zLabels = [
-    [(s.z1_end/2)        * cw + cw/2, "z1"],
-    [((s.z1_end+s.z2_end)/2+0.5)*cw, "z2"],
-    [((s.z2_end+COLS-1)/2+0.5)*cw,   "z3"],
+    [(s.z1_end/2)        * cw + cw/2, "Z1"],
+    [((s.z1_end+s.z2_end)/2+1)*cw, "Z2"],
+    [((s.z2_end+COLS-1)/2+1)*cw,   "Z3"],
   ];
   ctx.font = `bold ${Math.max(10,cw*0.38)}px Inter`;
   ctx.textAlign = "center";
@@ -769,6 +828,64 @@ function renderGrid(s) {
       ctx.restore();
     }
   });
+
+  // Handoff communication links (drawn on top of agents)
+  drawHandoffLinks(s, cw, ch, H);
+}
+
+// ── Handoff visualisation ─────────────────────────────────────────────────────
+function drawHandoffLinks(s, cw, ch, H) {
+  s.robots.forEach(r => {
+    const px = (r.x + 0.5) * cw;
+    const py = H - (r.y + 0.5) * ch;
+    const clr = ROBOT_CLR[r.type];
+
+    if (r.handoff_role === "initiator") {
+      // Pulsing dashed ring: waiting for responder
+      ctx.save();
+      ctx.strokeStyle = clr;
+      ctx.lineWidth   = 1.5;
+      ctx.globalAlpha = 0.55;
+      ctx.shadowColor = clr;
+      ctx.shadowBlur  = 8;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(px, py, Math.min(cw, ch) * 0.48, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (r.handoff_role === "responder" && r.partner_pos) {
+      const tx = (r.partner_pos[0] + 0.5) * cw;
+      const ty = H - (r.partner_pos[1] + 0.5) * ch;
+      const angle = Math.atan2(ty - py, tx - px);
+      const arrowR = 8;
+
+      ctx.save();
+      ctx.strokeStyle  = clr;
+      ctx.lineWidth    = 1.8;
+      ctx.globalAlpha  = 0.75;
+      ctx.shadowColor  = clr;
+      ctx.shadowBlur   = 6;
+      ctx.setLineDash([6, 4]);
+
+      // Dashed line from responder → initiator
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+
+      // Arrowhead at destination
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - arrowR * Math.cos(angle - 0.4), ty - arrowR * Math.sin(angle - 0.4));
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - arrowR * Math.cos(angle + 0.4), ty - arrowR * Math.sin(angle + 0.4));
+      ctx.stroke();
+      ctx.restore();
+    }
+  });
 }
 
 // ── API calls ────────────────────────────────────────────────────────────────
@@ -793,6 +910,49 @@ async function apiStep() {
   return r.json();
 }
 
+// ── Communication panel ──────────────────────────────────────────────────────
+const MSG_ICONS = {
+  has_unpaired:   "📢",
+  handoff_accept: "✅",
+  waste_at:       "📍",
+};
+
+function msgDetail(m) {
+  const pos = m.pos ? `(${m.pos[0]},${m.pos[1]})` : "";
+  const wclr = m.waste ? (WASTE_CLR[m.waste] || "#aaa") : "";
+  const wspan = m.waste
+    ? `<span style="color:${wclr};font-weight:700">${m.waste[0].toUpperCase()}</span>`
+    : "";
+
+  if (m.type === "waste_at")
+    return `📍 waste_at ${wspan} <span style="color:var(--muted)">${pos}</span>`;
+  if (m.type === "has_unpaired")
+    return `📢 unpaired ${wspan} <span style="color:var(--muted)">${pos}</span>`;
+  if (m.type === "handoff_accept")
+    return `✅ handoff accept`;
+  return `✉️ ${m.type} ${pos}`;
+}
+
+function updateComm(s) {
+  document.getElementById("totalMsgs").textContent = s.total_messages ?? 0;
+
+  const log = document.getElementById("msgLog");
+  if (!s.msg_log || !s.msg_log.length) {
+    log.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:4px 0">No messages yet</div>';
+    return;
+  }
+
+  const RCLR = {green:"#00e676", yellow:"#ffd740", red:"#ff5252"};
+  log.innerHTML = s.msg_log.map(m => {
+    const clr = RCLR[m.color] || "#aaa";
+    return `<div class="msg-entry">
+      <span class="msg-step">[${m.step}]</span>
+      <span class="msg-from" style="color:${clr}">${m.from}</span>
+      <span class="msg-type">${msgDetail(m)}</span>
+    </div>`;
+  }).join("");
+}
+
 // ── Animation loop ───────────────────────────────────────────────────────────
 function restartLoop() {
   clearInterval(animTimer);
@@ -807,6 +967,7 @@ async function tick() {
   renderGrid(s);
   pushHistory(s);
   updateHeader(s);
+  updateComm(s);
 
   if (s.finished) {
     stopSim();
@@ -833,6 +994,7 @@ btnStart.addEventListener("click", async () => {
   renderGrid(s);
   pushHistory(s);
   updateHeader(s);
+  updateComm(s);
 
   running = true;
   btnStart.textContent = "↺ Restart";
@@ -863,6 +1025,7 @@ window.addEventListener("resize", () => { if (simState) renderGrid(simState); })
   renderGrid(s);
   pushHistory(s);
   updateHeader(s);
+  updateComm(s);
 })();
 </script>
 </body>
