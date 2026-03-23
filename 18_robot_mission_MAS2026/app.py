@@ -40,9 +40,9 @@ def _serialize():
             elif isinstance(agent, (GreenAgent, YellowAgent, RedAgent)):
                 rtype = ("green"  if isinstance(agent, GreenAgent)  else
                          "yellow" if isinstance(agent, YellowAgent) else "red")
-                # inventory holds strings (e.g. "green", "yellow", "red")
                 robots.append({
                     "x": x, "y": y, "type": rtype,
+                    "label": agent.label,
                     "inventory": [w[0].upper() for w in agent.knowledge["inventory"]],
                 })
 
@@ -51,8 +51,8 @@ def _serialize():
         "step":         _steps,
         "width":        m.width,
         "height":       m.height,
-        "z1_end":       m.z1_max_x,   # renamed for frontend compatibility
-        "z2_end":       m.z2_max_x,   # renamed for frontend compatibility
+        "z1_end":       m.z1_max_x,
+        "z2_end":       m.z2_max_x,
         "disposal":     {"x": m.disposal_pos[0], "y": m.disposal_pos[1]},
         "wastes":       wastes,
         "robots":       robots,
@@ -61,6 +61,8 @@ def _serialize():
         "red_count":    m._count_waste("red"),
         "disposed":     m.disposed_count,
         "finished":     m.is_done() or _steps >= MAX_STEPS,
+        "internal_board": m.internal_board.snapshot(m.current_step),
+        "external_board": m.external_board.snapshot(m.current_step),
     }
 
 

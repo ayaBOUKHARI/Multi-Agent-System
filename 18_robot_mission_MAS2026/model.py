@@ -1,10 +1,14 @@
-# # Group: 18 | Date: 2026-03-16 | Members: Aya Boukhari, Ikram Firdaous, Ghiles Kemiche
+# Group: 18 | Date: 2026-03-23 | Members: Aya Boukhari, Ikram Firdaous, Ghiles Kemiche
 # model.py — RobotMission model (Mesa 3.x)
 #
 # Grid layout (west → east):
-#   z1 [0 .. W//3-1]  — low radioactivity, initial green wastes
+#   z1 [0 .. W//3-1]      — low radioactivity, initial green wastes
 #   z2 [W//3 .. 2W//3-1]  — medium radioactivity
-#   z3 [2W//3 .. W-1] — high radioactivity, waste disposal zone
+#   z3 [2W//3 .. W-1]     — high radioactivity, waste disposal zone
+#
+# Communication uses two heap-based message boards (see messaging.py):
+#   internal_board — same-color (handoff when stuck)
+#   external_board — cross-color (waste positions after deposit / seen)
 
 import random
 import mesa
@@ -13,9 +17,9 @@ from mesa.datacollection import DataCollector
 
 from objects import RadioactivityAgent, WasteAgent, WasteDisposalZone
 from agents import GreenAgent, YellowAgent, RedAgent
+from messaging import MessageBoard
 
 
-# Direction vectors (Mesa grid: x east, y north)
 DIRECTIONS = {
     "N":    ( 0,  1),
     "S":    ( 0, -1),
@@ -35,7 +39,7 @@ class RobotMission(mesa.Model):
     n_green_robots  : number of GreenAgent robots
     n_yellow_robots : number of YellowAgent robots
     n_red_robots    : number of RedAgent robots
-    n_green_wastes  : initial number of green WasteAgent objects placed in z1
+    n_green_wastes  : initial green WasteAgent objects placed in z1
     seed            : random seed (optional)
     """
 
@@ -55,10 +59,8 @@ class RobotMission(mesa.Model):
         self.height = height
         self.grid   = MultiGrid(width, height, torus=False)
 
-        # Zone x-boundaries (inclusive)
         self.z1_max_x = width // 3 - 1
         self.z2_max_x = 2 * width // 3 - 1
-        # z3 goes from 2*width//3 to width-1
 
         self.zone_boundaries = {
             "z1_max_x": self.z1_max_x,
@@ -67,20 +69,19 @@ class RobotMission(mesa.Model):
             "height":   height,
         }
 
-        self.disposal_pos: tuple = None  # set during grid build
+        self.disposal_pos: tuple = None
+        self.current_step: int = 0
 
-        # Message router: agent.unique_id → list of pending messages (FIPA-ACL style)
-        self.message_router: dict = {}
+        # Dual message boards
+        self.internal_board = MessageBoard("internal", max_size=30, ttl=80)
+        self.external_board = MessageBoard("external", max_size=50, ttl=100)
 
         # Build environment
         self._build_radioactivity()
         self._place_disposal_zone()
         self._place_initial_wastes(n_green_wastes)
-
-        # Place robots
         self._place_robots(n_green_robots, n_yellow_robots, n_red_robots)
 
-        # Data collection — track waste counts over time
         self.datacollector = DataCollector(
             model_reporters={
                 "Green wastes":  lambda m: m._count_waste("green"),
@@ -123,7 +124,7 @@ class RobotMission(mesa.Model):
         self.disposal_pos = (x, y)
 
     def _place_initial_wastes(self, n: int) -> None:
-        """Place n green WasteAgents randomly in z1."""
+        """Place *n* green WasteAgents randomly in z1."""
         for _ in range(n):
             x = self.random.randrange(0, self.z1_max_x + 1)
             y = self.random.randrange(self.height)
@@ -132,22 +133,25 @@ class RobotMission(mesa.Model):
 
     def _place_robots(self, n_green: int, n_yellow: int, n_red: int) -> None:
         """Place robots in random positions within their allowed zones."""
+        counters = {"green": 0, "yellow": 0, "red": 0}
+        prefix   = {"green": "g", "yellow": "y", "red": "r"}
+
         placements = [
-            (GreenAgent,  n_green,  0,                  self.z1_max_x),
-            (YellowAgent, n_yellow, 0,                  self.z2_max_x),
-            (RedAgent,    n_red,    0,                  self.width - 1),
+            (GreenAgent,  n_green,  0,  self.z1_max_x),
+            (YellowAgent, n_yellow, 0,  self.z2_max_x),
+            (RedAgent,    n_red,    0,  self.width - 1),
         ]
         for AgentClass, count, x_min, x_max in placements:
             for _ in range(count):
                 x = self.random.randrange(x_min, x_max + 1)
                 y = self.random.randrange(self.height)
                 robot = AgentClass(self)
-                # Initialise knowledge with model-level constants
+                counters[robot.color] += 1
+                robot.label = f"{prefix[robot.color]}{counters[robot.color]}"
                 robot.knowledge["zone_boundaries"] = self.zone_boundaries
                 robot.knowledge["disposal_pos"]    = self.disposal_pos
                 robot.knowledge["pos"]             = (x, y)
                 self.grid.place_agent(robot, (x, y))
-                self.message_router[robot.unique_id] = []
 
     # ------------------------------------------------------------------
     # Action execution — model.do()
@@ -155,80 +159,64 @@ class RobotMission(mesa.Model):
 
     def do(self, agent, action: dict) -> dict:
         """
-        Execute an action on behalf of an agent.
-        Checks feasibility, applies consequences, returns updated percepts.
+        Execute an action on behalf of an agent and return new percepts.
 
         Supported actions:
-          {"type": "move",      "direction": "N"|"S"|"E"|"W"|"stay"}
-          {"type": "pick_up"}
-          {"type": "transform"}
-          {"type": "put_down",  "waste_type": "green"|"yellow"|"red"}
+          move, pick_up, transform, put_down
         """
         action_type = action.get("type", "stay")
 
         if action_type == "move":
             self._do_move(agent, action.get("direction", "stay"))
-
         elif action_type == "pick_up":
             self._do_pick_up(agent)
-
         elif action_type == "transform":
             self._do_transform(agent)
-
         elif action_type == "put_down":
             self._do_put_down(agent, action.get("waste_type"))
-
-        elif action_type == "send_message":
-            self._do_send_message(agent, action.get("recipients"), action.get("message", {}))
 
         return self._get_percepts(agent)
 
     def _do_move(self, agent, direction: str) -> None:
-        """Move agent one step in direction if within bounds and allowed zone."""
+        """Move agent one step in *direction* if within bounds and allowed zone."""
         dx, dy = DIRECTIONS.get(direction, (0, 0))
         cx, cy = agent.pos
         nx, ny = cx + dx, cy + dy
 
-        # Bounds check
         if not (0 <= nx < self.width and 0 <= ny < self.height):
             return
-
-        # Zone access check
-        target_zone = self._zone_of(nx)
-        if target_zone not in agent.allowed_zones:
+        if self._zone_of(nx) not in agent.allowed_zones:
             return
 
         self.grid.move_agent(agent, (nx, ny))
 
     def _do_pick_up(self, agent) -> None:
         """
-        Pick up one waste from the agent's current cell.
-        Green robot picks green, yellow picks yellow, red picks red.
-        Inventory limit: green/yellow = 2, red = 1.
+        Pick up one waste from the agent's cell.
+        Green picks green, yellow picks yellow, red picks red.
+        Capacity: green/yellow = 2, red = 1.
         """
         inventory    = agent.knowledge["inventory"]
-        target_types = {"green": "green", "yellow": "yellow", "red": "red"}
-        robot_target = target_types[agent.color]
+        robot_target = agent.color
+        max_inv      = 1 if agent.color == "red" else 2
 
-        # Check inventory capacity
-        max_inv = 1 if agent.color == "red" else 2
         if len(inventory) >= max_inv:
             return
 
-        # Find matching waste in current cell
         cell_contents = self.grid.get_cell_list_contents([agent.pos])
         for obj in cell_contents:
             if isinstance(obj, WasteAgent) and obj.waste_type == robot_target:
                 inventory.append(obj.waste_type)
                 self.grid.remove_agent(obj)
                 obj.remove()
+                # Clean external board: waste no longer available at this position
+                self.external_board.remove_by_position(agent.pos)
                 return
 
     def _do_transform(self, agent) -> None:
         """
-        Transform wastes in inventory:
-          GreenAgent:  2 green → 1 yellow
-          YellowAgent: 2 yellow → 1 red
+        Transform wastes: 2 green → 1 yellow (GreenAgent),
+                          2 yellow → 1 red   (YellowAgent).
         """
         inv = agent.knowledge["inventory"]
 
@@ -236,7 +224,6 @@ class RobotMission(mesa.Model):
             inv.remove("green")
             inv.remove("green")
             inv.append("yellow")
-
         elif agent.color == "yellow" and inv.count("yellow") >= 2:
             inv.remove("yellow")
             inv.remove("yellow")
@@ -244,8 +231,9 @@ class RobotMission(mesa.Model):
 
     def _do_put_down(self, agent, waste_type: str) -> None:
         """
-        Deposit waste_type from inventory onto the grid.
-        If at the disposal zone AND waste is red, the waste is 'put away' (removed).
+        Deposit *waste_type* from inventory onto the grid.
+        At the disposal zone with red waste → waste is eliminated.
+        At a zone boundary after transform → post to external board.
         """
         inv = agent.knowledge["inventory"]
         if waste_type not in inv:
@@ -253,49 +241,32 @@ class RobotMission(mesa.Model):
 
         inv.remove(waste_type)
 
-        # Check if at waste disposal zone
         cell_contents = self.grid.get_cell_list_contents([agent.pos])
         at_disposal   = any(isinstance(c, WasteDisposalZone) for c in cell_contents)
 
         if at_disposal and waste_type == "red":
-            # Waste is officially disposed of — do not place on grid
             self.disposed_count += 1
-        else:
-            # Place waste back on grid at current position
-            waste = WasteAgent(self, waste_type)
-            self.grid.place_agent(waste, agent.pos)
+            return
 
-    def _do_send_message(self, agent, recipients, message: dict) -> None:
-        """
-        Route a FIPA-ACL-style message to one or more robots.
+        # Place waste on grid
+        waste = WasteAgent(self, waste_type)
+        self.grid.place_agent(waste, agent.pos)
 
-        recipients=None  → broadcast to all robots of `to_color` (default: same color as sender).
-        recipients=[ids] → unicast / multicast to specific agent unique_ids.
+        # Notify external board when depositing transformed waste at zone boundary
+        x = agent.pos[0]
+        target_color = None
+        if agent.color == "green" and waste_type == "yellow" and x >= self.z1_max_x:
+            target_color = "yellow"
+        elif agent.color == "yellow" and waste_type == "red" and x >= self.z2_max_x:
+            target_color = "red"
 
-        The message dict may include an optional `to_color` key to specify the
-        target color for a broadcast (e.g. a GreenAgent informing YellowAgents).
-        """
-        to_color = message.get("to_color")
-
-        # Build envelope without the routing-only `to_color` field
-        envelope = {
-            "sender_id":    agent.unique_id,
-            "sender_color": agent.color,
-            "sender_pos":   agent.pos,
-        }
-        for k, v in message.items():
-            if k != "to_color":
-                envelope[k] = v
-
-        if recipients is None:
-            target_color = to_color if to_color else agent.color
-            for a in self.agents:
-                if hasattr(a, "color") and a.color == target_color and a is not agent:
-                    self.message_router.setdefault(a.unique_id, []).append(envelope)
-        else:
-            for rid in recipients:
-                if rid in self.message_router:
-                    self.message_router[rid].append(envelope)
+        if target_color:
+            self.external_board.post(
+                agent.unique_id, agent.label, agent.color, target_color,
+                "waste_available",
+                {"waste_type": waste_type, "pos": list(agent.pos)},
+                self.current_step,
+            )
 
     # ------------------------------------------------------------------
     # Percept generation
@@ -303,24 +274,13 @@ class RobotMission(mesa.Model):
 
     def _get_percepts(self, agent) -> dict:
         """
-        Return a dict of cell contents for the agent's current cell
-        and all 4-neighbourhood cells (N, S, E, W).
-
-        Format:
-          {
-            (x, y): {
-              "radioactivity": float,
-              "wastes":        [{"waste_type": str}, ...],
-              "robots":        [{"color": str}, ...],
-              "is_disposal":   bool,
-            },
-            ...
-          }
+        Return cell contents for the agent's current cell and its
+        4-neighbourhood (N, S, E, W).
         """
         percepts = {}
         cx, cy   = agent.pos
 
-        cells_to_observe = [(cx, cy)]  # current cell
+        cells_to_observe = [(cx, cy)]
         for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
             nx, ny = cx + dx, cy + dy
             if 0 <= nx < self.width and 0 <= ny < self.height:
@@ -340,7 +300,7 @@ class RobotMission(mesa.Model):
                     wastes.append({"waste_type": obj.waste_type})
                 elif isinstance(obj, WasteDisposalZone):
                     is_disposal = True
-                elif hasattr(obj, "color"):  # robot
+                elif hasattr(obj, "color"):
                     if obj is not agent:
                         robots.append({"color": obj.color})
 
@@ -351,10 +311,6 @@ class RobotMission(mesa.Model):
                 "is_disposal":   is_disposal,
             }
 
-        # Deliver pending mailbox messages (cleared after delivery)
-        percepts["__mailbox__"] = list(self.message_router.get(agent.unique_id, []))
-        self.message_router[agent.unique_id] = []
-
         return percepts
 
     # ------------------------------------------------------------------
@@ -363,10 +319,17 @@ class RobotMission(mesa.Model):
 
     def step(self) -> None:
         """Advance the simulation by one step (random activation of robots)."""
-        robots = [a for a in self.agents if isinstance(a, (GreenAgent, YellowAgent, RedAgent))]
+        self.current_step += 1
+
+        self.internal_board.cleanup(self.current_step)
+        self.external_board.cleanup(self.current_step)
+
+        robots = [a for a in self.agents
+                  if isinstance(a, (GreenAgent, YellowAgent, RedAgent))]
         random.shuffle(robots)
         for robot in robots:
             robot.step()
+
         self.datacollector.collect(self)
 
     def _count_waste(self, waste_type: str | None) -> int:
@@ -387,5 +350,5 @@ class RobotMission(mesa.Model):
         return total
 
     def is_done(self) -> bool:
-        """Return True when no waste remains on the grid OR in any robot inventory."""
+        """True when no waste remains on the grid or in any robot inventory."""
         return self._count_waste(None) == 0 and self._count_inventory_waste() == 0

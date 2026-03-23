@@ -22,6 +22,7 @@
       --red:       #ff5252;
       --purple:    #b388ff;
       --blue:      #64b5f6;
+      --cyan:      #26c6da;
       --accent:    #7c4dff;
       --radius:    14px;
       --shadow:    0 8px 32px rgba(0,0,0,0.5);
@@ -40,7 +41,7 @@
       display: grid;
       height: 100vh;
       grid-template-rows: 56px 1fr;
-      grid-template-columns: 1fr 320px;
+      grid-template-columns: 1fr 340px;
       grid-template-areas:
         "header  header"
         "main    sidebar";
@@ -114,7 +115,6 @@
       backdrop-filter: blur(8px);
     }
 
-    /* Grid canvas card */
     .grid-card {
       flex: 1;
       display: flex;
@@ -140,7 +140,6 @@
       display: block;
     }
 
-    /* Chart card */
     .chart-card {
       height: 180px;
       padding: 10px 14px 8px;
@@ -161,7 +160,6 @@
     aside::-webkit-scrollbar { width: 4px; }
     aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-    /* Controls card */
     .controls-card { padding: 16px; }
 
     .section-title {
@@ -223,14 +221,12 @@
     input[type=range].yellow-track::-webkit-slider-thumb { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
     input[type=range].red-track::-webkit-slider-thumb    { background: var(--red);    box-shadow: 0 0 8px var(--red); }
 
-    /* Divider */
     .divider {
       height: 1px;
       background: var(--border);
       margin: 4px 0 16px;
     }
 
-    /* Buttons */
     .btn-row { display: flex; gap: 8px; margin-bottom: 14px; }
 
     .btn {
@@ -264,7 +260,6 @@
       border: 1px solid var(--border);
     }
 
-    /* Speed row */
     .speed-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
     .speed-row input { flex: 1; }
 
@@ -294,7 +289,6 @@
       border-radius: 3px;
     }
 
-    /* Step badge */
     .step-badge {
       font-size: 12px;
       font-weight: 600;
@@ -302,7 +296,6 @@
       color: var(--muted);
     }
 
-    /* Status banner */
     #statusBanner {
       display: none;
       align-items: center;
@@ -319,7 +312,6 @@
 
     #statusBanner.show { display: flex; }
 
-    /* Zone indicator dots */
     .zone-strip {
       display: flex;
       gap: 4px;
@@ -339,6 +331,124 @@
     .zone1 { background: rgba(0,200,80,0.15);  color: #4caf50; border: 1px solid rgba(76,175,80,0.25); }
     .zone2 { background: rgba(255,200,0,0.12); color: #ffb300; border: 1px solid rgba(255,179,0,0.25); }
     .zone3 { background: rgba(255,60,60,0.12); color: #ef5350; border: 1px solid rgba(239,83,80,0.25); }
+
+    /* ── Message Boards card ─────────────────────────────────────── */
+    .boards-card { padding: 14px 16px; }
+
+    .board-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .board-name {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .board-name.internal { color: var(--yellow); }
+    .board-name.external { color: var(--cyan); }
+
+    .board-count {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+
+    .board-count.internal {
+      color: var(--yellow);
+      background: rgba(255,215,64,0.12);
+    }
+
+    .board-count.external {
+      color: var(--cyan);
+      background: rgba(38,198,218,0.12);
+    }
+
+    .board-list {
+      max-height: 90px;
+      overflow-y: auto;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+
+    .board-list::-webkit-scrollbar { width: 3px; }
+    .board-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .board-entry {
+      padding: 3px 6px;
+      margin-bottom: 2px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 4px;
+      color: var(--text);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .board-entry.internal { border-left: 2px solid var(--yellow); }
+    .board-entry.external { border-left: 2px solid var(--cyan); }
+
+    .board-entry .cost-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(124,77,255,0.15);
+      padding: 0 5px;
+      border-radius: 6px;
+    }
+
+    .board-empty {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 11px;
+      padding: 2px 0;
+    }
+
+    /* Activity log */
+    .activity-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      margin-top: 6px;
+    }
+
+    .activity-name {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+    }
+
+    .activity-list {
+      max-height: 100px;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+
+    .activity-list::-webkit-scrollbar { width: 3px; }
+    .activity-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .activity-entry {
+      padding: 3px 6px;
+      margin-bottom: 2px;
+      background: rgba(255,255,255,0.025);
+      border-radius: 4px;
+      border-left: 2px solid var(--accent);
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .activity-entry strong { color: var(--accent); }
+    .activity-entry .step-tag { color: var(--muted); font-size: 10px; }
   </style>
 </head>
 <body>
@@ -347,16 +457,16 @@
   <!-- ── Header ─────────────────────────────────────────────────── -->
   <header>
     <div class="header-title">
-      <span class="icon">🤖</span>
+      <span class="icon">&#x1F916;</span>
       <span>Robot Mission &mdash; Multi-Agent Simulation</span>
     </div>
     <div class="header-stats">
-      <div class="stat-pill"><div class="dot dot-green"></div> Green <strong id="hGreen">—</strong></div>
-      <div class="stat-pill"><div class="dot dot-yellow"></div> Yellow <strong id="hYellow">—</strong></div>
-      <div class="stat-pill"><div class="dot dot-red"></div> Red <strong id="hRed">—</strong></div>
-      <div class="stat-pill"><div class="dot dot-purple"></div> Disposed <strong id="hDisposed">—</strong></div>
+      <div class="stat-pill"><div class="dot dot-green"></div> Green <strong id="hGreen">&mdash;</strong></div>
+      <div class="stat-pill"><div class="dot dot-yellow"></div> Yellow <strong id="hYellow">&mdash;</strong></div>
+      <div class="stat-pill"><div class="dot dot-red"></div> Red <strong id="hRed">&mdash;</strong></div>
+      <div class="stat-pill"><div class="dot dot-purple"></div> Disposed <strong id="hDisposed">&mdash;</strong></div>
     </div>
-    <div class="step-badge">Step <span id="hStep">—</span></div>
+    <div class="step-badge">Step <span id="hStep">&mdash;</span></div>
   </header>
 
   <!-- ── Main (grid + chart) ────────────────────────────────────── -->
@@ -379,7 +489,7 @@
 
       <div class="param-row">
         <div class="param-label">
-          <span>🟢 Green robots</span>
+          <span>Green robots</span>
           <span class="param-value" id="vGreen">3</span>
         </div>
         <input type="range" class="green-track"  id="sGreen"  min="1" max="10" value="3">
@@ -387,7 +497,7 @@
 
       <div class="param-row">
         <div class="param-label">
-          <span>🟡 Yellow robots</span>
+          <span>Yellow robots</span>
           <span class="param-value" id="vYellow">3</span>
         </div>
         <input type="range" class="yellow-track" id="sYellow" min="1" max="10" value="3">
@@ -395,7 +505,7 @@
 
       <div class="param-row">
         <div class="param-label">
-          <span>🔴 Red robots</span>
+          <span>Red robots</span>
           <span class="param-value" id="vRed">3</span>
         </div>
         <input type="range" class="red-track"    id="sRed"    min="1" max="10" value="3">
@@ -403,7 +513,7 @@
 
       <div class="param-row">
         <div class="param-label">
-          <span>🗑️ Green wastes</span>
+          <span>Green wastes</span>
           <span class="param-value" id="vWaste">12</span>
         </div>
         <input type="range" id="sWaste" min="4" max="32" step="4" value="12">
@@ -411,7 +521,7 @@
 
       <div class="param-row">
         <div class="param-label">
-          <span>🌱 Random seed</span>
+          <span>Random seed</span>
           <span class="param-value" id="vSeed">42</span>
         </div>
         <input type="range" id="sSeed" min="0" max="99" value="42">
@@ -420,18 +530,46 @@
       <div class="divider"></div>
 
       <div class="btn-row">
-        <button class="btn btn-primary"    id="btnStart">▶ Start</button>
-        <button class="btn btn-secondary"  id="btnPause" disabled>⏸ Pause</button>
+        <button class="btn btn-primary"    id="btnStart">&#x25B6; Start</button>
+        <button class="btn btn-secondary"  id="btnPause" disabled>&#x23F8; Pause</button>
       </div>
 
       <div class="speed-row">
-        <span>🐢</span>
+        <span>&#x1F422;</span>
         <input type="range" id="sSpeed" min="1" max="30" value="10">
-        <span>🐇</span>
+        <span>&#x1F407;</span>
         <span style="margin-left:4px;color:var(--text);font-weight:600" id="vSpeed">10 fps</span>
       </div>
 
-      <div id="statusBanner" style="margin-top:12px">✅ All waste disposed!</div>
+      <div id="statusBanner" style="margin-top:12px">&#x2705; All waste disposed!</div>
+    </div>
+
+    <!-- Message Boards -->
+    <div class="card boards-card">
+      <div class="section-title">Message Boards</div>
+
+      <div class="board-header">
+        <span class="board-name internal">Internal (same-color)</span>
+        <span class="board-count internal" id="intCount">0</span>
+      </div>
+      <div id="intBoard" class="board-list">
+        <div class="board-empty">No active requests</div>
+      </div>
+
+      <div class="board-header">
+        <span class="board-name external">External (cross-color)</span>
+        <span class="board-count external" id="extCount">0</span>
+      </div>
+      <div id="extBoard" class="board-list">
+        <div class="board-empty">No active requests</div>
+      </div>
+
+      <div class="activity-header">
+        <span class="activity-name">Activity log</span>
+      </div>
+      <div id="actLog" class="activity-list">
+        <div class="board-empty">No activity yet</div>
+      </div>
     </div>
 
     <!-- Zone legend -->
@@ -439,26 +577,26 @@
       <div class="section-title">Legend</div>
 
       <div class="zone-strip">
-        <div class="zone-badge zone1">z1 — low ☢️</div>
-        <div class="zone-badge zone2">z2 — medium ☢️</div>
-        <div class="zone-badge zone3">z3 — high ☢️</div>
+        <div class="zone-badge zone1">z1 — low</div>
+        <div class="zone-badge zone2">z2 — medium</div>
+        <div class="zone-badge zone3">z3 — high</div>
       </div>
 
       <div style="margin-top:10px">
         <div class="legend-item">
-          <div class="legend-icon" style="color:#00e676">▲</div>
-          <span style="color:#00e676">Green robot</span>
-          <span style="color:var(--muted);font-size:11px;margin-left:auto">zone z1</span>
+          <div class="legend-icon" style="color:#00e676">&#x25B2;</div>
+          <span style="color:#00e676">Green robot (g1, g2…)</span>
+          <span style="color:var(--muted);font-size:11px;margin-left:auto">z1</span>
         </div>
         <div class="legend-item">
-          <div class="legend-icon" style="color:#ffd740">★</div>
-          <span style="color:#ffd740">Yellow robot</span>
-          <span style="color:var(--muted);font-size:11px;margin-left:auto">z1 + z2</span>
+          <div class="legend-icon" style="color:#ffd740">&#x2605;</div>
+          <span style="color:#ffd740">Yellow robot (y1, y2…)</span>
+          <span style="color:var(--muted);font-size:11px;margin-left:auto">z1+z2</span>
         </div>
         <div class="legend-item">
-          <div class="legend-icon" style="color:#ff5252">⬟</div>
-          <span style="color:#ff5252">Red robot</span>
-          <span style="color:var(--muted);font-size:11px;margin-left:auto">all zones</span>
+          <div class="legend-icon" style="color:#ff5252">&#x2B1F;</div>
+          <span style="color:#ff5252">Red robot (r1, r2…)</span>
+          <span style="color:var(--muted);font-size:11px;margin-left:auto">all</span>
         </div>
         <div class="legend-item">
           <div class="swatch" style="background:#1db954"></div>
@@ -473,7 +611,7 @@
           <span>Red waste</span>
         </div>
         <div class="legend-item">
-          <div class="legend-icon" style="color:#b388ff">⬦</div>
+          <div class="legend-icon" style="color:#b388ff">&#x2B26;</div>
           <span>Disposal zone</span>
         </div>
       </div>
@@ -587,37 +725,27 @@ function resizeCanvas() {
   canvas.height = rect.height - 36;
 }
 
-function drawTriangle(x, y, size, color, glow) {
+function drawTriangle(x, y, size, color) {
   const h = size * 0.866;
   ctx.save();
-  if (glow) {
-    ctx.shadowColor = color;
-    ctx.shadowBlur  = 10;
-  }
-  ctx.fillStyle   = color;
-  ctx.strokeStyle = "rgba(255,255,255,0.5)";
-  ctx.lineWidth   = 0.5;
+  ctx.shadowColor = color; ctx.shadowBlur = 10;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 0.5;
   ctx.beginPath();
   ctx.moveTo(x,          y - h * 0.6);
   ctx.lineTo(x - size/2, y + h * 0.4);
   ctx.lineTo(x + size/2, y + h * 0.4);
   ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 
-function drawStar(cx, cy, r, color, glow) {
+function drawStar(cx, cy, r, color) {
   ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur  = glow ? 10 : 14;
-  ctx.fillStyle   = color;
-  if (glow) {
-    ctx.strokeStyle = "rgba(255,255,255,0.5)";
-    ctx.lineWidth   = 0.5;
-  }
-  const pts = 5;
-  const outer = r, inner = r * 0.4;
+  ctx.shadowColor = color; ctx.shadowBlur = 10;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 0.5;
+  const pts = 5, outer = r, inner = r * 0.4;
   ctx.beginPath();
   for (let i = 0; i < 2*pts; i++) {
     const rad = (i * Math.PI / pts) - Math.PI/2;
@@ -626,20 +754,15 @@ function drawStar(cx, cy, r, color, glow) {
             : ctx.lineTo(cx + d*Math.cos(rad), cy + d*Math.sin(rad));
   }
   ctx.closePath();
-  ctx.fill();
-  if (glow) ctx.stroke();
+  ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 
-function drawPentagon(cx, cy, r, color, glow) {
+function drawPentagon(cx, cy, r, color) {
   ctx.save();
-  if (glow) {
-    ctx.shadowColor = color;
-    ctx.shadowBlur  = 10;
-  }
-  ctx.fillStyle   = color;
-  ctx.strokeStyle = "rgba(255,255,255,0.5)";
-  ctx.lineWidth   = 0.5;
+  ctx.shadowColor = color; ctx.shadowBlur = 10;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 0.5;
   ctx.beginPath();
   for (let i = 0; i < 5; i++) {
     const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
@@ -648,26 +771,22 @@ function drawPentagon(cx, cy, r, color, glow) {
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
   ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 
 function drawDiamond(cx, cy, r, color) {
   ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur  = 14;
-  ctx.fillStyle   = color;
-  ctx.strokeStyle = "rgba(255,255,255,0.4)";
-  ctx.lineWidth   = 0.8;
+  ctx.shadowColor = color; ctx.shadowBlur = 14;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "rgba(255,255,255,0.4)"; ctx.lineWidth = 0.8;
   ctx.beginPath();
   ctx.moveTo(cx,         cy - r);
   ctx.lineTo(cx + r*0.7, cy);
   ctx.lineTo(cx,         cy + r);
   ctx.lineTo(cx - r*0.7, cy);
   ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 
@@ -701,16 +820,14 @@ function renderGrid(s) {
     [((s.z2_end+COLS-1)/2+0.5)*cw,   "z3"],
   ];
   ctx.font = `bold ${Math.max(10,cw*0.38)}px Inter`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "top";
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
   zLabels.forEach(([px, lbl]) => {
     ctx.fillStyle = "rgba(255,255,255,0.12)";
     ctx.fillText(lbl, px, 4);
   });
 
   // Grid lines
-  ctx.strokeStyle = "rgba(255,255,255,0.05)";
-  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = "rgba(255,255,255,0.05)"; ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath(); ctx.moveTo(c*cw,0); ctx.lineTo(c*cw,H); ctx.stroke();
   }
@@ -719,56 +836,131 @@ function renderGrid(s) {
   }
 
   // Zone borders
-  ctx.strokeStyle = "rgba(255,255,255,0.15)";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(255,255,255,0.15)"; ctx.lineWidth = 1.5;
   [s.z1_end+1, s.z2_end+1].forEach(col => {
-    ctx.beginPath();
-    ctx.moveTo(col*cw, 0); ctx.lineTo(col*cw, H);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(col*cw, 0); ctx.lineTo(col*cw, H); ctx.stroke();
   });
 
-  // Disposal zone — ⬦ diamond (mediumpurple)
+  // Disposal zone diamond
   const dx = s.disposal.x, dy = s.disposal.y;
   const dpx = (dx + 0.5)*cw, dpy = H - (dy + 0.5)*ch;
   drawDiamond(dpx, dpy, Math.min(cw,ch)*0.38, "#b388ff");
 
-  // Waste
+  // Waste squares
   s.wastes.forEach(w => {
     const px = (w.x + 0.5)*cw, py = H - (w.y + 0.5)*ch;
     const sz = Math.min(cw, ch) * 0.38;
     ctx.save();
-    ctx.shadowColor = WASTE_CLR[w.type];
-    ctx.shadowBlur  = 6;
-    ctx.fillStyle   = WASTE_CLR[w.type];
+    ctx.shadowColor = WASTE_CLR[w.type]; ctx.shadowBlur = 6;
+    ctx.fillStyle = WASTE_CLR[w.type];
     ctx.fillRect(px - sz/2, py - sz/2, sz, sz);
     ctx.restore();
   });
 
-  // Robots — ▲ green, ★ yellow, ⬟ red
+  // Group robots by cell to offset overlapping ones
+  const cellMap = {};
   s.robots.forEach(r => {
-    const px = (r.x + 0.5)*cw, py = H - (r.y + 0.5)*ch;
-    const sz = Math.min(cw,ch)*0.48;
+    const key = r.x + "," + r.y;
+    if (!cellMap[key]) cellMap[key] = [];
+    cellMap[key].push(r);
+  });
+
+  // Robots with labels
+  s.robots.forEach(r => {
+    const key = r.x + "," + r.y;
+    const group = cellMap[key];
+    const idx = group.indexOf(r);
+    const n = group.length;
+    const offsetX = n > 1 ? (idx - (n-1)/2) * (cw * 0.22) : 0;
+
+    const px = (r.x + 0.5)*cw + offsetX;
+    const py = H - (r.y + 0.5)*ch;
+    const sz = Math.min(cw,ch) * 0.44;
+
+    // Shape
     if (r.type === "green") {
-      drawTriangle(px, py, sz, ROBOT_CLR[r.type], true);
+      drawTriangle(px, py - 2, sz, ROBOT_CLR[r.type]);
     } else if (r.type === "yellow") {
-      drawStar(px, py, sz * 0.52, ROBOT_CLR[r.type], true);
+      drawStar(px, py - 2, sz * 0.5, ROBOT_CLR[r.type]);
     } else {
-      drawPentagon(px, py, sz * 0.46, ROBOT_CLR[r.type], true);
+      drawPentagon(px, py - 2, sz * 0.44, ROBOT_CLR[r.type]);
     }
 
-    // Inventory label
+    // Inventory text above
     if (r.inventory && r.inventory.length) {
       ctx.save();
-      ctx.font = `bold ${Math.max(8, sz*0.55)}px Inter`;
-      ctx.fillStyle   = "#fff";
-      ctx.textAlign   = "center";
-      ctx.textBaseline = "bottom";
-      ctx.shadowColor = "#000";
-      ctx.shadowBlur  = 3;
-      ctx.fillText(r.inventory.join(""), px, py - sz*0.6);
+      ctx.font = `bold ${Math.max(7, sz*0.5)}px Inter`;
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.shadowColor = "#000"; ctx.shadowBlur = 3;
+      ctx.fillText(r.inventory.join(""), px, py - sz*0.65);
       ctx.restore();
     }
+
+    // Label below (g1, y2, r3…)
+    ctx.save();
+    ctx.font = `600 ${Math.max(7, sz*0.4)}px Inter`;
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    ctx.shadowColor = "#000"; ctx.shadowBlur = 2;
+    ctx.fillText(r.label || "", px, py + sz*0.4);
+    ctx.restore();
   });
+}
+
+// ── Message board rendering ──────────────────────────────────────────────────
+function renderBoards(s) {
+  if (!s || !s.ready) return;
+  const ib = s.internal_board || {count:0, requests:[], history:[]};
+  const eb = s.external_board || {count:0, requests:[], history:[]};
+
+  // Internal board
+  document.getElementById("intCount").textContent = ib.count;
+  const ibEl = document.getElementById("intBoard");
+  if (ib.requests.length === 0) {
+    ibEl.innerHTML = '<div class="board-empty">No active requests</div>';
+  } else {
+    ibEl.innerHTML = ib.requests.map(r =>
+      `<div class="board-entry internal">
+        <span><strong>${r.sender}</strong> stuck ${r.waste} (${r.pos[0]},${r.pos[1]})</span>
+        <span style="color:var(--muted)">age ${r.age}</span>
+      </div>`
+    ).join("");
+  }
+
+  // External board
+  document.getElementById("extCount").textContent = eb.count;
+  const ebEl = document.getElementById("extBoard");
+  if (eb.requests.length === 0) {
+    ebEl.innerHTML = '<div class="board-empty">No active requests</div>';
+  } else {
+    ebEl.innerHTML = eb.requests.map(r =>
+      `<div class="board-entry external">
+        <span><strong>${r.sender}</strong>&rarr;${r.target} ${r.waste} (${r.pos[0]},${r.pos[1]})</span>
+        <span style="color:var(--muted)">age ${r.age}</span>
+      </div>`
+    ).join("");
+  }
+
+  // Activity log (merge history from both boards, newest first)
+  const allHistory = [...(ib.history || []), ...(eb.history || [])]
+    .sort((a, b) => b.step_taken - a.step_taken)
+    .slice(0, 12);
+
+  const logEl = document.getElementById("actLog");
+  if (allHistory.length === 0) {
+    logEl.innerHTML = '<div class="board-empty">No activity yet</div>';
+  } else {
+    logEl.innerHTML = allHistory.map(h => {
+      const typeTag = h.type === "stuck_unpaired" ? "handoff" : "waste";
+      return `<div class="activity-entry">
+        <strong>${h.taker}</strong> took ${typeTag}
+        (${h.pos ? h.pos[0]+","+h.pos[1] : "?"})
+        <span class="cost-badge">cost ${h.cost}</span>
+        <span class="step-tag">step ${h.step_taken}</span>
+      </div>`;
+    }).join("");
+  }
 }
 
 // ── API calls ────────────────────────────────────────────────────────────────
@@ -805,6 +997,7 @@ async function tick() {
   const s = await apiStep();
   simState = s;
   renderGrid(s);
+  renderBoards(s);
   pushHistory(s);
   updateHeader(s);
 
@@ -817,9 +1010,9 @@ async function tick() {
 function stopSim() {
   running = false;
   clearInterval(animTimer);
-  btnStart.textContent = "↺ Restart";
+  btnStart.textContent = "&#x21BA; Restart";
   btnPause.disabled = true;
-  btnPause.textContent = "⏸ Pause";
+  btnPause.textContent = "&#x23F8; Pause";
 }
 
 // ── Button handlers ──────────────────────────────────────────────────────────
@@ -831,13 +1024,14 @@ btnStart.addEventListener("click", async () => {
   const s = await apiReset();
   simState = s;
   renderGrid(s);
+  renderBoards(s);
   pushHistory(s);
   updateHeader(s);
 
   running = true;
-  btnStart.textContent = "↺ Restart";
+  btnStart.textContent = "&#x21BA; Restart";
   btnPause.disabled    = false;
-  btnPause.textContent = "⏸ Pause";
+  btnPause.textContent = "&#x23F8; Pause";
   restartLoop();
 });
 
@@ -845,10 +1039,10 @@ btnPause.addEventListener("click", () => {
   if (running) {
     running = false;
     clearInterval(animTimer);
-    btnPause.textContent = "▶ Resume";
+    btnPause.textContent = "&#x25B6; Resume";
   } else {
     running = true;
-    btnPause.textContent = "⏸ Pause";
+    btnPause.textContent = "&#x23F8; Pause";
     restartLoop();
   }
 });
@@ -856,11 +1050,11 @@ btnPause.addEventListener("click", () => {
 // ── Init ─────────────────────────────────────────────────────────────────────
 window.addEventListener("resize", () => { if (simState) renderGrid(simState); });
 
-// Draw initial state on load
 (async () => {
   const s = await apiReset();
   simState = s;
   renderGrid(s);
+  renderBoards(s);
   pushHistory(s);
   updateHeader(s);
 })();
