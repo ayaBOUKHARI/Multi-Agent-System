@@ -116,7 +116,7 @@ Agents are **goal-directed deliberative agents** structured around a `knowledge`
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Required Agent Properties (Lecture 1, slide 41)
+### 3.2 Required Agent Properties
 
 | Property | Implementation |
 |---|---|
@@ -236,8 +236,6 @@ Recipients add the position to `known_wastes`, reducing blind random walk time.
 
 ## 5. Communication Design
 
-*(Lecture 3)*
-
 ### 5.1 Message Format (FIPA-ACL inspired)
 
 ```python
@@ -298,8 +296,6 @@ Communication is modelled as **unbounded wireless broadcast** (no physical dista
 ---
 
 ## 6. Evaluation Criteria & Metrics
-
-*(Lecture 2, slides 29–33)*
 
 ### 6.1 Primary Criterion: Mission Completion
 
