@@ -1,4 +1,4 @@
-# Group: X | Date: 2026-03-20 | Members: (à compléter)
+# Group: 18 | Date: 2026-03-16 | Members: Aya Boukhari, Ikram Firdaous, Ghiles Kemiche
 # run.py — Headless simulation runner with matplotlib chart output
 #
 # Usage:  python run.py
