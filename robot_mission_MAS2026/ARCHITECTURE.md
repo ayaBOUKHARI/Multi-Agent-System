@@ -3,28 +3,6 @@
 
 ---
 
-## Vue d'ensemble
-
-Simulation multi-agents (SMA) d'une mission de collecte de déchets radioactifs.
-Des robots autonomes patrouillent une grille divisée en trois zones de dangerosité croissante.
-Ils collectent, transforment et acheminent les déchets vers une zone de dépôt, **sans coordinateur central** : chaque robot décide seul, et communique de façon décentralisée (Step 2).
-
-**Technologies** : Python · Mesa 3.5 · SolaraViz
-
----
-
-## Structure des fichiers
-
-```
-robot_mission_MAS2026/
-├── objects.py      — Agents passifs (radioactivité, déchets, zone de dépôt)
-├── model.py        — Monde : grille, exécution des actions, collecte de données
-├── agents.py       — Robots : boucle perception–délibération–action + communication
-├── server.py       — Visualisation interactive (SolaraViz)
-└── run.py          — Exécution headless avec graphiques matplotlib
-```
-
----
 
 ## La grille et les zones
 
