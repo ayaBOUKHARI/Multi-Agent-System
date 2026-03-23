@@ -1,13 +1,15 @@
 # group 18 : Aya Boukhari, Ikram Firdaous
 # date of creation : 16-03-2026
 
+
 import mesa
 import random
 from objects import Waste
 
 
 def _move_toward(current_pos, target_pos, allowed_x_range):
-
+    """Return a new (x, y) one step closer to *target_pos*, staying inside
+    *allowed_x_range* = (x_min, x_max) inclusive."""
     cx, cy = current_pos
     tx, ty = target_pos
 
@@ -62,7 +64,9 @@ class RobotAgent(mesa.Agent):
         # Percepts from the previous step (populated by model.do at init time)
         self.percepts = {}
 
-
+    # ------------------------------------------------------------------
+    # Knowledge update
+    # ------------------------------------------------------------------
 
     def update_knowledge(self, percepts: dict) -> None:
         """Update the knowledge base from new percepts."""
@@ -81,17 +85,26 @@ class RobotAgent(mesa.Agent):
             if cell_info.get("is_disposal_zone"):
                 k["disposal_zone_pos"] = cell_pos
 
+    # ------------------------------------------------------------------
+    # Mesa step
+    # ------------------------------------------------------------------
 
     def step(self) -> None:
         self.update_knowledge(self.percepts)
         action = self.deliberate(self.knowledge)
         self.percepts = self.model.do(self, action)
 
+    # ------------------------------------------------------------------
+    # deliberate – override in subclasses
+    # ------------------------------------------------------------------
 
     def deliberate(self, knowledge: dict) -> dict:
         raise NotImplementedError
 
 
+# ---------------------------------------------------------------------------
+# Green Robot  (zone z1 only)
+# ---------------------------------------------------------------------------
 
 class GreenAgent(RobotAgent):
     """
@@ -148,6 +161,10 @@ class GreenAgent(RobotAgent):
         return {"type": "move", "target": new_pos}
 
 
+# ---------------------------------------------------------------------------
+# Yellow Robot  (zones z1 + z2)
+# ---------------------------------------------------------------------------
+
 class YellowAgent(RobotAgent):
     """
     Strategy:
@@ -203,6 +220,9 @@ class YellowAgent(RobotAgent):
         return {"type": "move", "target": new_pos}
 
 
+# ---------------------------------------------------------------------------
+# Red Robot  (zones z1 + z2 + z3)
+# ---------------------------------------------------------------------------
 
 class RedAgent(RobotAgent):
     """
