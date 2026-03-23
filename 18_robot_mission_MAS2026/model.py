@@ -317,6 +317,39 @@ class RobotMission(mesa.Model):
     # Model step & data helpers
     # ------------------------------------------------------------------
 
+    def get_robot_agents(self):
+        """Return all active robot agents."""
+        return [
+            a for a in self.agents
+            if isinstance(a, (GreenAgent, YellowAgent, RedAgent))
+        ]
+
+    def get_best_taker_for_request(self, request):
+        """
+        Compute the best eligible taker for a request.
+
+        Ranking:
+          1) lower computed cost
+          2) lower per-agent step_n (steps_taken)
+        """
+        candidates = []
+        for robot in self.get_robot_agents():
+            if robot.color != request.target_color or robot.unique_id == request.sender_id:
+                continue
+            cost = robot._compute_cost(request)
+            if cost < float("inf"):
+                candidates.append({
+                    "agent": robot,
+                    "cost": cost,
+                    "step_n": robot.steps_taken,
+                })
+
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda c: (c["cost"], c["step_n"], c["agent"].label))
+        return candidates[0]
+
     def step(self) -> None:
         """Advance the simulation by one step (random activation of robots)."""
         self.current_step += 1
@@ -324,8 +357,7 @@ class RobotMission(mesa.Model):
         self.internal_board.cleanup(self.current_step)
         self.external_board.cleanup(self.current_step)
 
-        robots = [a for a in self.agents
-                  if isinstance(a, (GreenAgent, YellowAgent, RedAgent))]
+        robots = self.get_robot_agents()
         random.shuffle(robots)
         for robot in robots:
             robot.step()

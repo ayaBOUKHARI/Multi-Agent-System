@@ -108,7 +108,7 @@ class MessageBoard:
 
     # ── Taking ────────────────────────────────────────────────────────
 
-    def take(self, request_id, taker_id, taker_label, cost, current_step):
+    def take(self, request_id, taker_id, taker_label, cost, current_step, taker_step_n=None):
         """
         Take a request: remove it from the board and create a confirmation
         for the original sender.
@@ -137,6 +137,7 @@ class MessageBoard:
             "waste": req.payload.get("waste_type"),
             "taker": taker_label,
             "cost": cost,
+            "taker_step_n": taker_step_n,
             "step_posted": req.step_posted,
             "step_taken": current_step,
         })

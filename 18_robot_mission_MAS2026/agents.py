@@ -235,6 +235,7 @@ class RobotAgent(mesa.Agent):
         super().__init__(model)
         self.color = color
         self.label: str = ""              # assigned by model (g1, y2, r3 …)
+        self.steps_taken: int = 0         # per-agent step count (step_n)
         self.allowed_zones: set = set()
         self.deliberate_fn = None
         self._last_percepts: dict = {}
@@ -390,9 +391,15 @@ class RobotAgent(mesa.Agent):
         if best_req is None or best_cost >= float("inf"):
             return
 
+        # Global arbitration: only the best eligible agent may take this request.
+        # Tie-break rule: same cost -> lower step_n wins.
+        best_taker = self.model.get_best_taker_for_request(best_req)
+        if not best_taker or best_taker["agent"].unique_id != self.unique_id:
+            return
+
         taken = best_board.take(
             best_req.request_id, self.unique_id,
-            self.label, best_cost, self.model.current_step,
+            self.label, best_cost, self.model.current_step, self.steps_taken,
         )
         if taken:
             self._integrate_taken_request(taken)
@@ -489,6 +496,7 @@ class RobotAgent(mesa.Agent):
           5. Execute action via model.do(), store returned percepts
           6. Post to boards based on new state
         """
+        self.steps_taken += 1
         self._update_knowledge(self._last_percepts)
         self._check_confirmations()
         self._evaluate_boards()

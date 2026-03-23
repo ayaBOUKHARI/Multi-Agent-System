@@ -370,7 +370,7 @@
     }
 
     .board-list {
-      max-height: 90px;
+      max-height: 180px;
       overflow-y: auto;
       font-size: 11px;
       margin-bottom: 10px;
@@ -390,6 +390,49 @@
       align-items: center;
       gap: 4px;
       font-variant-numeric: tabular-nums;
+    }
+    .board-entry-main { display: flex; justify-content: space-between; gap: 6px; }
+    .board-candidates {
+      margin-top: 4px;
+      padding-top: 4px;
+      border-top: 1px dashed rgba(255,255,255,0.09);
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    .board-candidates .best { color: #ffffff; font-weight: 600; }
+
+    /* Request stack cards */
+    .stack-card {
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.025);
+      margin-bottom: 6px;
+      padding: 7px 8px;
+    }
+    .stack-card.internal { border-left: 3px solid var(--yellow); }
+    .stack-card.external { border-left: 3px solid var(--cyan); }
+    .stack-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 3px;
+      font-size: 11px;
+    }
+    .stack-meta {
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+    .stack-id {
+      color: #fff;
+      font-weight: 700;
+      background: rgba(124,77,255,0.18);
+      border-radius: 6px;
+      padding: 1px 6px;
+      min-width: 42px;
+      text-align: center;
     }
 
     .board-entry.internal { border-left: 2px solid var(--yellow); }
@@ -429,7 +472,7 @@
     }
 
     .activity-list {
-      max-height: 100px;
+      max-height: 220px;
       overflow-y: auto;
       font-size: 11px;
     }
@@ -438,13 +481,26 @@
     .activity-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
     .activity-entry {
-      padding: 3px 6px;
-      margin-bottom: 2px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
       background: rgba(255,255,255,0.025);
-      border-radius: 4px;
-      border-left: 2px solid var(--accent);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
       color: var(--text);
       font-variant-numeric: tabular-nums;
+    }
+    .activity-entry.done { border-left-color: var(--green); }
+    .activity-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+    .check {
+      color: var(--green);
+      font-weight: 700;
+      font-size: 12px;
     }
 
     .activity-entry strong { color: var(--accent); }
@@ -565,7 +621,7 @@
       </div>
 
       <div class="activity-header">
-        <span class="activity-name">Activity log</span>
+        <span class="activity-name">Traitées (cochées)</span>
       </div>
       <div id="actLog" class="activity-list">
         <div class="board-empty">No activity yet</div>
@@ -920,10 +976,22 @@ function renderBoards(s) {
   if (ib.requests.length === 0) {
     ibEl.innerHTML = '<div class="board-empty">No active requests</div>';
   } else {
-    ibEl.innerHTML = ib.requests.map(r =>
-      `<div class="board-entry internal">
-        <span><strong>${r.sender}</strong> stuck ${r.waste} (${r.pos[0]},${r.pos[1]})</span>
-        <span style="color:var(--muted)">age ${r.age}</span>
+    ibEl.innerHTML = ib.requests.map((r, idx) =>
+      `<div class="stack-card internal">
+        <div class="stack-top">
+          <span class="stack-id">#${r.id}</span>
+          <span><strong>${r.sender}</strong> -> ${r.type} (${r.waste})</span>
+          <span style="color:var(--muted)">age ${r.age}</span>
+        </div>
+        <div class="stack-meta">pile index: ${idx + 1} | pos: (${r.pos[0]},${r.pos[1]})</div>
+        <div class="board-candidates">
+          ${
+            (r.candidate_heap && r.candidate_heap.length)
+            ? `heap: ${r.candidate_heap.slice(0, 4).map(c => `${c.label}[c=${c.cost},s=${c.step_n}]`).join(" | ")}
+               <div class="best">best -> ${r.best_candidate.label} (cost ${r.best_candidate.cost}, step_n ${r.best_candidate.step_n})</div>`
+            : "heap: no eligible free agent"
+          }
+        </div>
       </div>`
     ).join("");
   }
@@ -934,10 +1002,22 @@ function renderBoards(s) {
   if (eb.requests.length === 0) {
     ebEl.innerHTML = '<div class="board-empty">No active requests</div>';
   } else {
-    ebEl.innerHTML = eb.requests.map(r =>
-      `<div class="board-entry external">
-        <span><strong>${r.sender}</strong>&rarr;${r.target} ${r.waste} (${r.pos[0]},${r.pos[1]})</span>
-        <span style="color:var(--muted)">age ${r.age}</span>
+    ebEl.innerHTML = eb.requests.map((r, idx) =>
+      `<div class="stack-card external">
+        <div class="stack-top">
+          <span class="stack-id">#${r.id}</span>
+          <span><strong>${r.sender}</strong> -> ${r.target} (${r.waste})</span>
+          <span style="color:var(--muted)">age ${r.age}</span>
+        </div>
+        <div class="stack-meta">pile index: ${idx + 1} | pos: (${r.pos[0]},${r.pos[1]})</div>
+        <div class="board-candidates">
+          ${
+            (r.candidate_heap && r.candidate_heap.length)
+            ? `heap: ${r.candidate_heap.slice(0, 4).map(c => `${c.label}[c=${c.cost},s=${c.step_n}]`).join(" | ")}
+               <div class="best">best -> ${r.best_candidate.label} (cost ${r.best_candidate.cost}, step_n ${r.best_candidate.step_n})</div>`
+            : "heap: no eligible free agent"
+          }
+        </div>
       </div>`
     ).join("");
   }
@@ -945,7 +1025,7 @@ function renderBoards(s) {
   // Activity log (merge history from both boards, newest first)
   const allHistory = [...(ib.history || []), ...(eb.history || [])]
     .sort((a, b) => b.step_taken - a.step_taken)
-    .slice(0, 12);
+    .slice(0, 16);
 
   const logEl = document.getElementById("actLog");
   if (allHistory.length === 0) {
@@ -953,11 +1033,18 @@ function renderBoards(s) {
   } else {
     logEl.innerHTML = allHistory.map(h => {
       const typeTag = h.type === "stuck_unpaired" ? "handoff" : "waste";
-      return `<div class="activity-entry">
-        <strong>${h.taker}</strong> took ${typeTag}
-        (${h.pos ? h.pos[0]+","+h.pos[1] : "?"})
-        <span class="cost-badge">cost ${h.cost}</span>
-        <span class="step-tag">step ${h.step_taken}</span>
+      return `<div class="activity-entry done">
+        <div class="activity-title">
+          <span class="check">✓</span>
+          <span><strong>#${h.id}</strong> ${typeTag} | ${h.sender} -> <strong>${h.taker}</strong></span>
+          <span class="step-tag">step ${h.step_taken}</span>
+        </div>
+        <div>
+          <span class="cost-badge">coût venir ${h.cost_to_reach ?? h.cost}</span>
+          <span class="cost-badge">coût venir + dépôt ~ ${h.cost_come_and_deposit ?? "?"}</span>
+          <span class="cost-badge">step_n ${h.taker_step_n ?? "?"}</span>
+        </div>
+        <div class="stack-meta">pos: ${h.pos ? "("+h.pos[0]+","+h.pos[1]+")" : "?"} | waste: ${h.waste ?? "-"}</div>
       </div>`;
     }).join("");
   }
@@ -1010,9 +1097,9 @@ async function tick() {
 function stopSim() {
   running = false;
   clearInterval(animTimer);
-  btnStart.textContent = "&#x21BA; Restart";
+  btnStart.textContent = "↺ Restart";
   btnPause.disabled = true;
-  btnPause.textContent = "&#x23F8; Pause";
+  btnPause.textContent = "⏸ Pause";
 }
 
 // ── Button handlers ──────────────────────────────────────────────────────────
@@ -1029,9 +1116,9 @@ btnStart.addEventListener("click", async () => {
   updateHeader(s);
 
   running = true;
-  btnStart.textContent = "&#x21BA; Restart";
+  btnStart.textContent = "↺ Restart";
   btnPause.disabled    = false;
-  btnPause.textContent = "&#x23F8; Pause";
+  btnPause.textContent = "⏸ Pause";
   restartLoop();
 });
 
@@ -1039,10 +1126,10 @@ btnPause.addEventListener("click", () => {
   if (running) {
     running = false;
     clearInterval(animTimer);
-    btnPause.textContent = "&#x25B6; Resume";
+    btnPause.textContent = "▶ Resume";
   } else {
     running = true;
-    btnPause.textContent = "&#x23F8; Pause";
+    btnPause.textContent = "⏸ Pause";
     restartLoop();
   }
 });

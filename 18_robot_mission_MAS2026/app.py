@@ -24,6 +24,54 @@ MAX_STEPS = 1000
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _board_snapshot_with_candidates(m, board):
+    """
+    Snapshot board state with candidate heaps per request.
+
+    For each request:
+      - list eligible agents with their cost and step_n
+      - expose the current best candidate (min cost, then min step_n)
+    """
+    active = sorted(board._requests.values(), key=lambda r: r.step_posted)
+    requests = []
+    robots = [a for a in m.get_robot_agents()]
+
+    for req in active:
+        candidates = []
+        for robot in robots:
+            if robot.color != req.target_color or robot.unique_id == req.sender_id:
+                continue
+            cost = robot._compute_cost(req)
+            if cost < float("inf"):
+                candidates.append({
+                    "label": robot.label,
+                    "cost": cost,
+                    "step_n": robot.steps_taken,
+                })
+        candidates.sort(key=lambda c: (c["cost"], c["step_n"], c["label"]))
+
+        req_data = req.to_dict(m.current_step)
+        req_data["candidate_heap"] = candidates
+        req_data["best_candidate"] = candidates[0] if candidates else None
+        requests.append(req_data)
+
+    history = []
+    for h in board.history[-25:]:
+        item = dict(h)
+        # Cost currently represents the selection cost to take/reach the request.
+        item["cost_to_reach"] = h.get("cost")
+        # Approximation for "come + deposit": one extra action to deposit.
+        item["cost_come_and_deposit"] = (h.get("cost") + 1) if h.get("cost") is not None else None
+        history.append(item)
+
+    return {
+        "name": board.name,
+        "count": len(requests),
+        "requests": requests,
+        "history": history,
+    }
+
+
 def _serialize():
     """Convert current model state to a JSON-serialisable dict."""
     m = _model
@@ -61,8 +109,8 @@ def _serialize():
         "red_count":    m._count_waste("red"),
         "disposed":     m.disposed_count,
         "finished":     m.is_done() or _steps >= MAX_STEPS,
-        "internal_board": m.internal_board.snapshot(m.current_step),
-        "external_board": m.external_board.snapshot(m.current_step),
+        "internal_board": _board_snapshot_with_candidates(m, m.internal_board),
+        "external_board": _board_snapshot_with_candidates(m, m.external_board),
     }
 
 
