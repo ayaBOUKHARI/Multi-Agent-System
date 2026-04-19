@@ -263,6 +263,83 @@
     .speed-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
     .speed-row input { flex: 1; }
 
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .toggle-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .toggle-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .toggle-hint {
+      font-size: 11px;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-flex;
+      width: 48px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .switch-slider {
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 999px;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .switch-slider::before {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+      transition: transform 0.2s ease;
+    }
+
+    .switch input:checked + .switch-slider {
+      background: rgba(38,198,218,0.22);
+      border-color: rgba(38,198,218,0.5);
+    }
+
+    .switch input:checked + .switch-slider::before {
+      transform: translateX(20px);
+    }
+
     /* Legend card */
     .legend-card { padding: 14px 16px; }
 
@@ -334,6 +411,17 @@
 
     /* ── Message Boards card ─────────────────────────────────────── */
     .boards-card { padding: 14px 16px; }
+    .boards-card.disabled {
+      opacity: 0.72;
+      border-style: dashed;
+    }
+
+    .board-mode-hint {
+      margin-bottom: 12px;
+      font-size: 11px;
+      line-height: 1.4;
+      color: var(--muted);
+    }
 
     .board-header {
       display: flex;
@@ -505,6 +593,76 @@
 
     .activity-entry strong { color: var(--accent); }
     .activity-entry .step-tag { color: var(--muted); font-size: 10px; }
+
+    .protocol-card { padding: 14px 16px; }
+    .protocol-card.disabled {
+      opacity: 0.58;
+      border-style: dashed;
+    }
+
+    .protocol-hint {
+      margin-bottom: 10px;
+      font-size: 11px;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+
+    .protocol-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .protocol-badge {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(124,77,255,0.15);
+      border: 1px solid rgba(124,77,255,0.3);
+    }
+
+    .protocol-list {
+      max-height: 180px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    .protocol-list::-webkit-scrollbar { width: 3px; }
+    .protocol-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .protocol-entry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 6px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .protocol-step {
+      min-width: 34px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .protocol-from {
+      min-width: 28px;
+      font-weight: 700;
+    }
+
+    .protocol-type {
+      flex: 1;
+      color: var(--text);
+    }
   </style>
 </head>
 <body>
@@ -583,6 +741,17 @@
         <input type="range" id="sSeed" min="0" max="99" value="42">
       </div>
 
+      <div class="toggle-row">
+        <div class="toggle-copy">
+          <span class="toggle-title">Heap communication</span>
+          <span class="toggle-hint" id="vCommunication">On restart: current heap-board behavior</span>
+        </div>
+        <label class="switch" for="sCommunication">
+          <input type="checkbox" id="sCommunication" checked>
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+
       <div class="divider"></div>
 
       <div class="btn-row">
@@ -601,8 +770,9 @@
     </div>
 
     <!-- Message Boards -->
-    <div class="card boards-card">
+    <div class="card boards-card" id="boardsCard">
       <div class="section-title">Message Boards</div>
+      <div class="board-mode-hint" id="boardModeHint">Heap communication enabled.</div>
 
       <div class="board-header">
         <span class="board-name internal">Internal (same-color)</span>
@@ -625,6 +795,18 @@
       </div>
       <div id="actLog" class="activity-list">
         <div class="board-empty">No activity yet</div>
+      </div>
+    </div>
+
+    <div class="card protocol-card" id="protocolCard">
+      <div class="section-title">Previous Protocol</div>
+      <div class="protocol-hint" id="protocolModeHint">Available when heap communication is off.</div>
+      <div class="protocol-stats">
+        <span>Total messages</span>
+        <span class="protocol-badge" id="protocolMsgCount">0</span>
+      </div>
+      <div id="protocolLog" class="protocol-list">
+        <div class="board-empty">No legacy protocol activity yet</div>
       </div>
     </div>
 
@@ -695,6 +877,14 @@ const ctx      = canvas.getContext("2d");
 const btnStart = document.getElementById("btnStart");
 const btnPause = document.getElementById("btnPause");
 const banner   = document.getElementById("statusBanner");
+const sCommunication = document.getElementById("sCommunication");
+const vCommunication = document.getElementById("vCommunication");
+const boardsCard = document.getElementById("boardsCard");
+const boardModeHint = document.getElementById("boardModeHint");
+const protocolCard = document.getElementById("protocolCard");
+const protocolModeHint = document.getElementById("protocolModeHint");
+const protocolMsgCount = document.getElementById("protocolMsgCount");
+const protocolLog = document.getElementById("protocolLog");
 
 // Slider wiring
 const sliders = [
@@ -716,6 +906,18 @@ sSpeed.addEventListener("input", () => {
   vSpeed.textContent = sSpeed.value + " fps";
   if (running) restartLoop();
 });
+
+function updateCommunicationLabel(enabled) {
+  vCommunication.textContent = enabled
+    ? "On restart: current heap-board behavior"
+    : "On restart: previous agent-to-agent protocol from main";
+}
+
+sCommunication.addEventListener("change", () => {
+  updateCommunicationLabel(sCommunication.checked);
+});
+
+updateCommunicationLabel(sCommunication.checked);
 
 // ── Chart.js setup ───────────────────────────────────────────────────────────
 const chartCtx = document.getElementById("wasteChart").getContext("2d");
@@ -967,12 +1169,29 @@ function renderGrid(s) {
 // ── Message board rendering ──────────────────────────────────────────────────
 function renderBoards(s) {
   if (!s || !s.ready) return;
+  const communicationEnabled = s.communication_enabled !== false;
   const ib = s.internal_board || {count:0, requests:[], history:[]};
   const eb = s.external_board || {count:0, requests:[], history:[]};
+  const ibEl = document.getElementById("intBoard");
+  const ebEl = document.getElementById("extBoard");
+  const logEl = document.getElementById("actLog");
+
+  boardsCard.classList.toggle("disabled", !communicationEnabled);
+  boardModeHint.textContent = communicationEnabled
+    ? "Heap communication enabled."
+    : "Heap boards disabled. Previous agent-to-agent protocol is active.";
+
+  if (!communicationEnabled) {
+    document.getElementById("intCount").textContent = "0";
+    document.getElementById("extCount").textContent = "0";
+    ibEl.innerHTML = '<div class="board-empty">Disabled in previous-protocol mode</div>';
+    ebEl.innerHTML = '<div class="board-empty">Disabled in previous-protocol mode</div>';
+    logEl.innerHTML = '<div class="board-empty">No board activity in previous-protocol mode</div>';
+    return;
+  }
 
   // Internal board
   document.getElementById("intCount").textContent = ib.count;
-  const ibEl = document.getElementById("intBoard");
   if (ib.requests.length === 0) {
     ibEl.innerHTML = '<div class="board-empty">No active requests</div>';
   } else {
@@ -998,7 +1217,6 @@ function renderBoards(s) {
 
   // External board
   document.getElementById("extCount").textContent = eb.count;
-  const ebEl = document.getElementById("extBoard");
   if (eb.requests.length === 0) {
     ebEl.innerHTML = '<div class="board-empty">No active requests</div>';
   } else {
@@ -1027,7 +1245,6 @@ function renderBoards(s) {
     .sort((a, b) => b.step_taken - a.step_taken)
     .slice(0, 16);
 
-  const logEl = document.getElementById("actLog");
   if (allHistory.length === 0) {
     logEl.innerHTML = '<div class="board-empty">No activity yet</div>';
   } else {
@@ -1050,6 +1267,39 @@ function renderBoards(s) {
   }
 }
 
+function renderProtocolComm(s) {
+  if (!s || !s.ready) return;
+  const heapMode = s.communication_enabled !== false;
+
+  protocolCard.classList.toggle("disabled", heapMode);
+
+  if (heapMode) {
+    protocolModeHint.textContent = "Available when heap communication is off.";
+    protocolMsgCount.textContent = "0";
+    protocolLog.innerHTML = '<div class="board-empty">Legacy protocol hidden while heap mode is active</div>';
+    return;
+  }
+
+  protocolModeHint.textContent = "Previous direct agent-to-agent protocol from main is active.";
+  protocolMsgCount.textContent = s.total_messages ?? 0;
+
+  if (!s.msg_log || !s.msg_log.length) {
+    protocolLog.innerHTML = '<div class="board-empty">No legacy protocol activity yet</div>';
+    return;
+  }
+
+  protocolLog.innerHTML = s.msg_log.map(m => {
+    const color = ROBOT_CLR[m.color] || "#a0a0c0";
+    const pos = m.pos ? ` (${m.pos[0]},${m.pos[1]})` : "";
+    const waste = m.waste ? ` ${m.waste}` : "";
+    return `<div class="protocol-entry">
+      <span class="protocol-step">[${m.step}]</span>
+      <span class="protocol-from" style="color:${color}">${m.from}</span>
+      <span class="protocol-type">${m.type}${waste}${pos}</span>
+    </div>`;
+  }).join("");
+}
+
 // ── API calls ────────────────────────────────────────────────────────────────
 async function apiReset() {
   const body = {
@@ -1057,6 +1307,7 @@ async function apiReset() {
     yellow_robots: +document.getElementById("sYellow").value,
     red_robots:    +document.getElementById("sRed").value,
     green_wastes:  +document.getElementById("sWaste").value,
+    communication_enabled: document.getElementById("sCommunication").checked,
     seed:          +document.getElementById("sSeed").value,
   };
   const r = await fetch("/api/reset", {
@@ -1085,6 +1336,7 @@ async function tick() {
   simState = s;
   renderGrid(s);
   renderBoards(s);
+  renderProtocolComm(s);
   pushHistory(s);
   updateHeader(s);
 
@@ -1112,6 +1364,7 @@ btnStart.addEventListener("click", async () => {
   simState = s;
   renderGrid(s);
   renderBoards(s);
+  renderProtocolComm(s);
   pushHistory(s);
   updateHeader(s);
 
@@ -1142,6 +1395,7 @@ window.addEventListener("resize", () => { if (simState) renderGrid(simState); })
   simState = s;
   renderGrid(s);
   renderBoards(s);
+  renderProtocolComm(s);
   pushHistory(s);
   updateHeader(s);
 })();

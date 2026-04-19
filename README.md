@@ -13,6 +13,7 @@
 3. [Agent Architecture](#3-agent-architecture)
 4. [Behavioral Strategies](#4-behavioral-strategies)
 5. [Communication Design — Dual Message Boards](#5-communication-design--dual-message-boards)
+   - [5.7 Centralization Risks](#57-centralization-risks-and-how-we-control-them)
 6. [Evaluation Criteria & Metrics](#6-evaluation-criteria--metrics)
 7. [Results](#7-results)
 8. [How to Run](#8-how-to-run)
@@ -123,6 +124,9 @@ knowledge = {
     "inventory":       ["green", "green"],
     "zone_boundaries": {"z1_max_x": int, "z2_max_x": int, ...},
     "disposal_pos":    (x, y),
+
+    # Communication
+    "communication_enabled": bool,
 
     # Handoff state
     "partner_id":      int | None,
@@ -270,7 +274,22 @@ Cross-tier waste seen during observation is also posted to the external board (r
 | **Responder self-cleanup** | Responder removes its own stuck request when it takes another's |
 | **Stale waste guard** | Agent navigates to taken waste_available position, finds nothing → known_wastes auto-cleared by observation |
 
-### 5.7 Edge Cases Handled
+### 5.7 Centralization Risks (and How We Control Them)
+
+The dual message board is a **shared, writable data structure** — effectively a small "central tower" that every agent reads from and writes to. That design pays off in coordination quality but it inherits the usual centralized-coordination risks. Worth stating them honestly:
+
+| Risk | What could go wrong | Concrete example | Mitigation in this project |
+|---|---|---|---|
+| **Write conflicts / coherence** | Two agents post or take "the same" thing simultaneously; the board drifts out of sync with ground truth. | Two green robots both post `stuck_unpaired` for the same cell before either sees the other; or one agent picks up a waste while another is still deciding to take the `waste_available` entry. | Sequential stepping (one agent at a time) serializes all writes. `take()` is atomic (`dict.pop`): only one agent can consume a request. On pickup, `remove_by_position` evicts stale `waste_available` entries. Duplicate-sender and duplicate-position checks reject redundant posts. |
+| **Stale / lying state** | An entry keeps pointing to a position that has changed or no longer contains waste. | A `stuck_unpaired` post freezes the sender's position from 10 steps ago; a `waste_available` cell was already emptied. | Position is refreshed each step while the request is active (`update_sender_position`). TTLs (80 / 100 steps) drop stale entries. If an agent navigates to a position and observes an empty cell, `known_wastes` is cleared — behavior degrades gracefully to random walk. |
+| **Saturation / message storm** | Unbounded board growth slows every evaluation and floods candidates. | Every robot posts every step, boards grow to thousands of entries, cost evaluation becomes O(N·M). | Hard capacity caps (internal 30, external 50) — `post()` returns `None` when full. Duplicate prevention keeps post rate O(agents), not O(agents × steps). Cost-based arbitration elects **one** taker per request, not a broadcast. |
+| **Single point of failure** | If the board is corrupted or disabled, the whole fleet freezes. | Partial crash of the "tower". | The boards are **not load-bearing for correctness**. Disabling them (UI toggle "Heap communication" → off) falls back to the peer-to-peer direct-message protocol, which still converges (see §7.1) — we lose some efficiency and predictability the time of the "repair", but the mission keeps completing. Recovery is immediate when the board is re-enabled. |
+| **Hidden coupling / starvation** | A "loud" agent monopolizes the board and crowds out others. | One robot keeps reposting the same stuck signal and always wins on locality. | Each sender is limited to one active request per `(type)` via `has_active_from`. Arbitration tie-breaks on `steps_taken`, favoring agents that have acted less. |
+| **Inconsistency between boards and ground truth** | Internal state (inventory, handoff role) drifts relative to board content. | Agent handoff times out locally but its entry stays on the board. | `_clear_handoff` calls `remove_by_sender`; the responder removes its own stuck entry when it takes another's. TTLs provide a floor even if a bug leaves an orphan. |
+
+**Summary.** The centralized component is a deliberate choice for coordination quality, and the risks above are real in the general case. In this project they are bounded by: sequential stepping, atomic take, per-sender/per-position dedup, TTLs, capacity caps, position refresh, arbitration tie-breaks, and a fallback path (the peer-to-peer direct-message protocol) that still converges when the board is off. Coherence failures are not *prevented by assumption* — they are contained by explicit safeguards, and the worst degradation observed is the loss of efficiency documented in §7.1, not a paralyzed system.
+
+### 5.8 Edge Cases Handled
 
 | Case | Handling |
 |---|---|
@@ -308,16 +327,26 @@ def is_done(self) -> bool:
 
 *Run `python 18_robot_mission_MAS2026/run.py` to reproduce.*
 
-### 7.1 Benchmark Summary
+### 7.1 Benchmark — Heap Board vs. Direct-Message Protocol
 
-| Configuration | Avg. completion step | Disposed |
-|---|:---:|:---:|
-| N=12, 3+3+3 robots | ~80 | 3 |
-| N=10, 3+3+3 robots | ~150 | 2 |
-| N=16, 3+3+3 robots | ~200 | 4 |
+Both modes are toggled by the **"Heap communication"** button in the Flask UI. In both cases agents communicate and both modes are expected to converge — the comparison is about **coordination efficiency**, not about whether the mission completes. Same seeds (1, 2, 3, 7, 11), 3+3+3 robots, grid 15×10, 600-step cap, 5 seeds averaged.
 
-Communication resolves structural deadlocks at very low overhead.
-The board-based system is more efficient than broadcast: only the best-suited agent takes each request, avoiding redundant processing.
+| Initial green wastes | Mode | Avg. completion step | min / max | Avg. disposed (/ max) |
+|:---:|:---:|:---:|:---:|:---:|
+| **8**  | Heap board (dashboard)   | **84.8**  | 76 / 95   | **2.0 / 2** ✓ |
+| 8      | Direct messages | 169.4     | 95 / 357  | 2.0 / 2 ✓     |
+| **12** | Heap board (dashboard)   | **99.6**  | 72 / 132  | **3.0 / 3** ✓ |
+| 12     | Direct messages | 185.0     | 94 / 322  | 3.0 / 3 ✓     |
+| **16** | Heap board (dashboard)   | 198.4     | 152 / 247 | 4.0 / 4 ✓     |
+| 16     | Direct messages | **183.8** | 105 / 287 | 4.0 / 4 ✓     |
+
+### 7.2 Interpretation
+
+- **Both modes complete the mission.** The direct-message protocol is a working coordination mechanism on its own — agents exchange stuck / waste-available signals peer-to-peer and resolve the same structural deadlocks. The heap board is not a correctness requirement but a **visibility and arbitration layer** on top of the same principle.
+- **Heap board is typically faster on small / medium loads.** At N=8 and N=12 the dashboard mode is roughly 2× faster on average and has a much tighter spread (smaller gap between min and max). The board surfaces every pending request at once, so cost-based arbitration picks the nearest agent globally rather than relying on whoever happens to receive a direct message first.
+- **Variance matters more than the mean.** Direct-message runs have large tails (357 steps at N=8, 322 at N=12) because a stuck signal can be missed if the right responder isn't in range. The board removes that luck — every eligible agent re-evaluates it every step until it is taken.
+- **The advantage narrows at higher N.** At N=16, both modes are within noise of each other (5 seeds is not a large sample). With more waste in play, percept-driven behavior dominates anyway — fewer deadlocks to resolve through communication, so the routing advantage of the board matters less.
+- **What changes, what doesn't.** Switching off the dashboard removes the central visualization and the arbitration layer, but the fleet keeps coordinating through the direct-message protocol. The trade-off is **efficiency and predictability**, not **capability**.
 
 ---
 
@@ -361,16 +390,23 @@ python 18_robot_mission_MAS2026/run.py --wastes 10 --steps 500 --seed 42
 
 ```
 18_robot_mission_MAS2026/
-├── messaging.py    — Dual message boards (MessageBoard, Request classes)
-├── objects.py      — Passive agents (RadioactivityAgent, WasteAgent, WasteDisposalZone)
-├── model.py        — RobotMission: grid, do(), boards, percepts
-├── agents.py       — Robot deliberation + board interaction + RobotAgent base class
-├── app.py          — Flask web server (API + serves index.html)
+├── core/                      — Heap-board model (current design)
+│   ├── __init__.py
+│   ├── objects.py             — Passive agents (RadioactivityAgent, WasteAgent, WasteDisposalZone)
+│   ├── messaging.py           — Dual message boards (MessageBoard, Request)
+│   ├── agents.py              — Robot deliberation + board interaction + RobotAgent base
+│   └── model.py               — RobotMission: grid, do(), boards, percepts
+├── direct/                    — Peer-to-peer direct-message protocol (toggle from the UI)
+│   ├── __init__.py
+│   ├── agents.py              — DirectRobotAgent + Direct{Green,Yellow,Red}Agent
+│   └── model.py               — DirectRobotMission
 ├── templates/
-│   └── index.html  — Browser UI: canvas grid, Chart.js, board visualization
-├── server.py       — SolaraViz interactive interface
-├── server1.py      — Matplotlib + TkAgg animated desktop UI
-└── run.py          — Headless runner + matplotlib charts
+│   └── index.html             — Browser UI: canvas grid, Chart.js, board visualization
+├── app.py                     — Flask entry: API + serves index.html, toggles heap/direct
+├── server.py                  — SolaraViz interactive interface
+├── server1.py                 — Matplotlib + TkAgg animated desktop UI
+├── run.py                     — Headless runner + matplotlib charts
+└── ARCHITECTURE.md            — Extended design notes
 ```
 
 ### Key Design Decisions

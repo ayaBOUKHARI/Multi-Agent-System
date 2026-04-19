@@ -7,12 +7,10 @@
 import argparse
 import sys
 import os
-
-# Allow imports from this package directory
 sys.path.insert(0, os.path.dirname(__file__))
 
 import matplotlib.pyplot as plt
-from model import RobotMission
+from core.model import RobotMission
 
 
 def run_simulation(

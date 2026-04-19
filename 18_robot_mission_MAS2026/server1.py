@@ -1,7 +1,5 @@
 # Group: 18 | Date: 2026-03-23 | Members: Aya Boukhari, Ikram Firdaous, Ghiles Kemiche
-
-
-
+# server1.py — Matplotlib + TkAgg animated desktop UI
 
 import sys
 import os
@@ -14,11 +12,10 @@ import matplotlib.patches as mpatches
 import matplotlib.animation as animation
 from matplotlib.widgets import Button, Slider
 
-from model import RobotMission
-from objects import WasteAgent, WasteDisposalZone
-from agents import GreenAgent, YellowAgent, RedAgent
+from core.model import RobotMission
+from core.objects import WasteAgent, WasteDisposalZone
+from core.agents import GreenAgent, YellowAgent, RedAgent
 
-# ─── Theme ────────────────────────────────────────────────────────────────────
 plt.style.use("dark_background")
 
 ZONE_BG    = ["#0d2b0d", "#2b2b08", "#2b0d0d"]   # z1 / z2 / z3 dark tints
@@ -33,7 +30,6 @@ ROBOT_MARKER      = {"green": "^", "yellow": "*", "red": "p"}
 ROBOT_SIZE_MAIN   = {"green": 11,  "yellow": 14,  "red": 11}
 ROBOT_SIZE_GLOW   = {"green": 16,  "yellow": 20,  "red": 16}
 
-# ─── Default parameters ───────────────────────────────────────────────────────
 DEFAULTS = dict(
     width           = 15,
     height          = 10,
@@ -46,8 +42,6 @@ DEFAULTS = dict(
 MAX_STEPS    = 1000
 INITIAL_FPS  = 10
 
-
-# ─── Drawing helpers ──────────────────────────────────────────────────────────
 
 def _draw_grid(ax, model, step_num):
     ax.clear()
@@ -184,8 +178,6 @@ def _draw_chart(ax, history):
     ax.grid(True, color=GRID_CLR, alpha=0.5)
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
-
 def run_visual():
 
     fig = plt.figure(figsize=(19, 9), facecolor="#0a0a0a")
@@ -195,7 +187,6 @@ def run_visual():
     ax_grid  = fig.add_axes([0.01, 0.27, 0.58, 0.68])
     ax_chart = fig.add_axes([0.65, 0.27, 0.33, 0.68])
 
-    # ── Parameter sliders ────────────────────────────────────────────
     slider_specs = [
         # (label,          x,    y,     w,    vmin, vmax, vinit, valstep)
         ("🟢 Green robots",  0.04, 0.17, 0.12,  1, 10,  DEFAULTS["n_green_robots"],  1),
@@ -235,7 +226,6 @@ def run_visual():
         btn.label.set_color("white")
         btn.label.set_fontsize(9)
 
-    # ── Simulation state ─────────────────────────────────────────────
     state = {
         "model":   None,
         "history": None,

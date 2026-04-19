@@ -1,37 +1,27 @@
 # Group: 18 | Date: 2026-03-23 | Members: Aya Boukhari, Ikram Firdaous, Ghiles Kemiche
-"""
-app.py – Flask web server for the Robot Mission simulation.
-
-Run:
-    python app.py
-Then open  http://127.0.0.1:5000  in your browser.
-"""
+# app.py — Flask server  →  http://127.0.0.1:5000
 
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from flask import Flask, render_template, jsonify, request
-from model import RobotMission
-from objects import WasteAgent, WasteDisposalZone
-from agents import GreenAgent, YellowAgent, RedAgent
+from core.model import RobotMission
+from core.objects import WasteAgent, WasteDisposalZone
+from core.agents import GreenAgent, YellowAgent, RedAgent
+from direct.model import DirectRobotMission
+from direct.agents import DirectGreenAgent, DirectYellowAgent, DirectRedAgent
 
 app = Flask(__name__)
 
-_model = None   # current simulation instance
-_steps = 0      # manual step counter (model.step() does not auto-increment)
+_model = None
+_steps = 0
+_msg_log = []
+_total_messages = 0
 MAX_STEPS = 1000
+MSG_LOG_SIZE = 60
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _board_snapshot_with_candidates(m, board):
-    """
-    Snapshot board state with candidate heaps per request.
-
-    For each request:
-      - list eligible agents with their cost and step_n
-      - expose the current best candidate (min cost, then min step_n)
-    """
     active = sorted(board._requests.values(), key=lambda r: r.step_posted)
     requests = []
     robots = [a for a in m.get_robot_agents()]
@@ -58,9 +48,7 @@ def _board_snapshot_with_candidates(m, board):
     history = []
     for h in board.history[-25:]:
         item = dict(h)
-        # Cost currently represents the selection cost to take/reach the request.
         item["cost_to_reach"] = h.get("cost")
-        # Approximation for "come + deposit": one extra action to deposit.
         item["cost_come_and_deposit"] = (h.get("cost") + 1) if h.get("cost") is not None else None
         history.append(item)
 
@@ -72,33 +60,74 @@ def _board_snapshot_with_candidates(m, board):
     }
 
 
+def _wrap_send_message(model):
+    original = getattr(model, "_do_send_message", None)
+    if original is None:
+        return
+
+    def _intercepted(agent, recipients, message):
+        global _msg_log, _total_messages
+        _total_messages += 1
+        content = message.get("content", {})
+        entry = {
+            "step": _steps,
+            "from": agent.label or f"{agent.color[0]}{agent.unique_id}",
+            "color": agent.color,
+            "perf": message.get("performative", "?"),
+            "type": content.get("type", "?"),
+            "pos": content.get("pos"),
+            "waste": content.get("waste"),
+            "to": "broadcast" if recipients is None else f"#{recipients[0]}",
+        }
+        _msg_log.append(entry)
+        if len(_msg_log) > MSG_LOG_SIZE:
+            _msg_log.pop(0)
+        return original(agent, recipients, message)
+
+    model._do_send_message = _intercepted
+
+
 def _serialize():
-    """Convert current model state to a JSON-serialisable dict."""
     m = _model
     if m is None:
         return {"ready": False}
 
     wastes, robots = [], []
+    robot_types = (
+        GreenAgent, YellowAgent, RedAgent,
+        DirectGreenAgent, DirectYellowAgent, DirectRedAgent,
+    )
 
     for cell_content, (x, y) in m.grid.coord_iter():
         for agent in cell_content:
             if isinstance(agent, WasteAgent):
                 wastes.append({"x": x, "y": y, "type": agent.waste_type})
 
-            elif isinstance(agent, (GreenAgent, YellowAgent, RedAgent)):
-                rtype = ("green"  if isinstance(agent, GreenAgent)  else
-                         "yellow" if isinstance(agent, YellowAgent) else "red")
+            elif isinstance(agent, robot_types):
+                rtype = ("green"  if isinstance(agent, (GreenAgent,  DirectGreenAgent))  else
+                         "yellow" if isinstance(agent, (YellowAgent, DirectYellowAgent)) else "red")
+                partner_pos = agent.knowledge.get("partner_pos")
                 robots.append({
                     "x": x, "y": y, "type": rtype,
                     "label": agent.label,
                     "inventory": [w[0].upper() for w in agent.knowledge["inventory"]],
+                    "handoff_role": agent.knowledge.get("handoff_role"),
+                    "partner_pos": list(partner_pos) if partner_pos else None,
                 })
+
+    if getattr(m, "communication_enabled", True):
+        internal_board = _board_snapshot_with_candidates(m, m.internal_board)
+        external_board = _board_snapshot_with_candidates(m, m.external_board)
+    else:
+        internal_board = {"name": "internal", "count": 0, "requests": [], "history": []}
+        external_board = {"name": "external", "count": 0, "requests": [], "history": []}
 
     return {
         "ready":        True,
         "step":         _steps,
         "width":        m.width,
         "height":       m.height,
+        "communication_enabled": m.communication_enabled,
         "z1_end":       m.z1_max_x,
         "z2_end":       m.z2_max_x,
         "disposal":     {"x": m.disposal_pos[0], "y": m.disposal_pos[1]},
@@ -109,12 +138,13 @@ def _serialize():
         "red_count":    m._count_waste("red"),
         "disposed":     m.disposed_count,
         "finished":     m.is_done() or _steps >= MAX_STEPS,
-        "internal_board": _board_snapshot_with_candidates(m, m.internal_board),
-        "external_board": _board_snapshot_with_candidates(m, m.external_board),
+        "total_messages": _total_messages,
+        "msg_log": list(reversed(_msg_log[-20:])),
+        "internal_board": internal_board,
+        "external_board": external_board,
     }
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -123,18 +153,31 @@ def index():
 
 @app.route("/api/reset", methods=["POST"])
 def reset():
-    global _model, _steps
+    global _model, _steps, _total_messages
     d = request.get_json(silent=True) or {}
-    _model = RobotMission(
-        width           = 15,
-        height          = 10,
-        n_green_robots  = max(1, int(d.get("green_robots",   3))),
-        n_yellow_robots = max(1, int(d.get("yellow_robots",  3))),
-        n_red_robots    = max(1, int(d.get("red_robots",     3))),
-        n_green_wastes  = max(4, int(d.get("green_wastes",  12))),
-        seed            = int(d.get("seed", 42)),
-    )
+    use_heap_mode = bool(d.get("communication_enabled", True))
+    common_args = {
+        "width": 15,
+        "height": 10,
+        "n_green_robots": max(1, int(d.get("green_robots", 3))),
+        "n_yellow_robots": max(1, int(d.get("yellow_robots", 3))),
+        "n_red_robots": max(1, int(d.get("red_robots", 3))),
+        "n_green_wastes": max(4, int(d.get("green_wastes", 12))),
+        "seed": int(d.get("seed", 42)),
+    }
+
+    if use_heap_mode:
+        _model = RobotMission(
+            communication_enabled=True,
+            **common_args,
+        )
+    else:
+        _model = DirectRobotMission(**common_args)
+        _wrap_send_message(_model)
+
     _steps = 0
+    _msg_log.clear()
+    _total_messages = 0
     return jsonify(_serialize())
 
 

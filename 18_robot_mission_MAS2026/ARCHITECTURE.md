@@ -1,5 +1,10 @@
 # Robot Mission — Waste Collection MAS 2026
-## Documentation d'architecture
+## Architecture du protocole pair-à-pair (`direct/`)
+
+> Ce document décrit le protocole de communication pair-à-pair implémenté dans le module `direct/`
+> (agents `DirectGreenAgent`, `DirectYellowAgent`, `DirectRedAgent` et modèle `DirectRobotMission`).
+> Pour la conception globale du système et le protocole principal à base de tableaux partagés (`core/`),
+> voir le **README.md** à la racine du dépôt.
 
 ---
 
@@ -58,7 +63,7 @@ Pour une élimination totale, N doit être un multiple de 4 (ex : 8, 12, 16…).
 
 Ces agents n'ont **pas de comportement** (`step()` = pass).
 
-### Robots (`agents.py`)
+### Robots (`direct/agents.py`)
 
 | Classe | Zone | Inventaire max | Rôle |
 |--------|------|---------------|------|
@@ -131,7 +136,7 @@ knowledge = {
 
 ---
 
-## Le modèle (`model.py`)
+## Le modèle (`direct/model.py`)
 
 ### Actions supportées par `model.do(agent, action)`
 
@@ -242,7 +247,7 @@ Le récepteur ajoute la position à son `known_wastes`. Cela réduit le temps de
 ### Mode interactif (SolaraViz)
 
 ```bash
-solara run robot_mission_MAS2026/server.py
+solara run 18_robot_mission_MAS2026/server.py
 ```
 
 Ouvre un navigateur avec la grille animée, des sliders pour ajuster les paramètres, et deux graphiques en temps réel.
@@ -250,14 +255,14 @@ Ouvre un navigateur avec la grille animée, des sliders pour ajuster les paramè
 ### Mode headless (terminal)
 
 ```bash
-# Défauts : 12 déchets, 300 steps, 3 robots de chaque couleur
-python robot_mission_MAS2026/run.py
+# Défauts : 10 déchets, 300 steps, 3 robots de chaque couleur
+python 18_robot_mission_MAS2026/run.py
 
 # Paramètres explicites
-python robot_mission_MAS2026/run.py --steps 200 --wastes 12 --seed 42
+python 18_robot_mission_MAS2026/run.py --steps 200 --wastes 12 --seed 42
 
 # Sans graphique matplotlib
-python robot_mission_MAS2026/run.py --no-plot
+python 18_robot_mission_MAS2026/run.py --no-plot
 ```
 
 **Sortie attendue (12 déchets verts, multiples de 4)** :

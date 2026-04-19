@@ -46,19 +46,12 @@ class Request:
 
 class MessageBoard:
     """
-    Heap-based message board for agent communication.
+    Shared request board sorted by posting step (oldest = highest priority).
 
-    Requests are sorted by posting step (oldest first).  Agents take requests
-    based on personal cost.  A confirmation is generated for the sender so
-    it can react (e.g. become handoff initiator).
-
-    Safeguards
-    ----------
-    - Duplicate prevention  : same sender + same type → reject
-    - Position dedup        : no two waste_available at the same cell
-    - Max capacity          : board rejects when full
-    - TTL expiry            : stale requests auto-removed each step
-    - Self-filter           : agent cannot take its own request
+    Agents post requests, evaluate available ones, and the cheapest eligible
+    agent takes it — at which point a confirmation is sent back to the original
+    poster so it can react (e.g. become the handoff initiator).
+    Duplicates, stale entries, and over-capacity posts are silently rejected.
     """
 
     def __init__(self, name, max_size=30, ttl=80):
@@ -73,8 +66,6 @@ class MessageBoard:
     @property
     def active_count(self):
         return len(self._requests)
-
-    # ── Posting ───────────────────────────────────────────────────────
 
     def post(self, sender_id, sender_label, sender_color, target_color,
              request_type, payload, current_step):
@@ -105,8 +96,6 @@ class MessageBoard:
             target_color, request_type, payload, current_step,
         )
         return rid
-
-    # ── Taking ────────────────────────────────────────────────────────
 
     def take(self, request_id, taker_id, taker_label, cost, current_step, taker_step_n=None):
         """
@@ -147,8 +136,6 @@ class MessageBoard:
         """Consume and return the confirmation for *sender_id*, or None."""
         return self._confirmations.pop(sender_id, None)
 
-    # ── Querying ──────────────────────────────────────────────────────
-
     def get_available(self, target_color, exclude_id):
         """Return requests matching *target_color*, excluding *exclude_id*."""
         return [
@@ -163,8 +150,6 @@ class MessageBoard:
                 if request_type is None or r.request_type == request_type:
                     return True
         return False
-
-    # ── Cleanup / removal ─────────────────────────────────────────────
 
     def remove_by_sender(self, sender_id):
         """Remove every request posted by *sender_id*."""
@@ -196,8 +181,6 @@ class MessageBoard:
                    if current_step - r.step_posted > self.ttl]
         for rid in expired:
             del self._requests[rid]
-
-    # ── Serialization ─────────────────────────────────────────────────
 
     def snapshot(self, current_step):
         """Return a JSON-serializable snapshot for the web UI."""
