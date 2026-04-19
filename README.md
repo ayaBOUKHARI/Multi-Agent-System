@@ -1,10 +1,9 @@
 # Robot Mission — Radioactive Waste Collection MAS
 ### Multi-Agent Systems Project 2026
 
-> # Group: 18 | Date: 2026-03-23 | Members: Ikram Firdaous, Aya Boukhari , Ghiles Kemiche
-> **Framework:** Mesa 3.5 · Python · SolaraViz
+> # Group: 18 | Date: 2026-03-23 | Members: Ikram Firdaous, Aya Boukhari, Ghiles Kemiche
+> Framework: Mesa 3.5, Python, SolaraViz
 
----
 
 ## Table of Contents
 
@@ -19,15 +18,13 @@
 8. [How to Run](#8-how-to-run)
 9. [Project Structure](#9-project-structure)
 
----
 
 ## 1. Problem Statement
 
 Radioactive waste has been scattered across a hostile environment. The environment is divided into **three zones of increasing radioactivity**. Robots of different capabilities must collect, transform, and route this waste toward a disposal zone, working without a central coordinator.
 
-**Core challenge:** each waste tier requires two units to be merged into one unit of the next tier. With an odd number of initial wastes at any tier, at least one robot will remain stuck holding an unpaired unit indefinitely — a **structural deadlock** that pure random walk cannot resolve.
+Each waste tier requires two units to merge into one of the next tier. With an odd number of wastes at any tier, at least one robot ends up holding an unpaired unit it cannot transform — a deadlock that random walk alone cannot break.
 
----
 
 ## 2. System Scope
 
@@ -41,8 +38,6 @@ Radioactive waste has been scattered across a hostile environment. The environme
 | Deterministic | Yes (given a seed) |
 | Episodic / Sequential | Sequential (actions have long-term consequences) |
 | Multi-agent | Yes — robots act concurrently in a shared space |
-
-**Zone layout:**
 
 ```
 x=0               x=4               x=9               x=14
@@ -75,10 +70,8 @@ Each cell contains one `RadioactivityAgent` that encodes its zone and radioactiv
   └──────────────────┘      └──────────────────┘      └──────────────────┘
 ```
 
-**Mathematical constraint:** N initial green wastes → ⌊N/2⌋ yellow → ⌊N/4⌋ red → ⌊N/4⌋ disposed.
-Full disposal requires N to be a **multiple of 4** (8, 12, 16 …).
+N initial green wastes yield ⌊N/2⌋ yellow, ⌊N/4⌋ red, and ⌊N/4⌋ disposed. Full disposal requires N to be a multiple of 4 (8, 12, 16…).
 
----
 
 ## 3. Agent Architecture
 
@@ -137,7 +130,6 @@ knowledge = {
 }
 ```
 
----
 
 ## 4. Behavioral Strategies
 
@@ -155,7 +147,6 @@ knowledge = {
 
 Communication is **no longer an action** — it happens automatically through the message boards before and after deliberation. This means agents never lose a turn to communicate.
 
----
 
 ## 5. Communication Design — Dual Message Boards
 
@@ -232,11 +223,10 @@ The agent picks the **single lowest-cost** request across both boards. If tied, 
     g1 picks up → 2 green → transform ✓
 ```
 
-**Guards against failure:**
-- `drop_avoid_pos` prevents responder from re-picking up dropped waste
-- Initiator timeout: 20 steps → resume normal exploration
-- Responder timeout: 40 steps → abandon handoff
-- Position auto-update: stuck agent's position refreshed each step while request is active
+- `drop_avoid_pos` prevents the responder from immediately re-picking up the waste it just dropped
+- Initiator timeout: 20 steps, then resumes normal exploration
+- Responder timeout: 40 steps, then abandons the handoff
+- Position auto-update: the stuck agent refreshes its position in the request each step
 
 ### 5.5 Protocol B — Deposit Notification (External Board)
 
@@ -287,7 +277,7 @@ The dual message board is a **shared, writable data structure** — effectively 
 | **Hidden coupling / starvation** | A "loud" agent monopolizes the board and crowds out others. | One robot keeps reposting the same stuck signal and always wins on locality. | Each sender is limited to one active request per `(type)` via `has_active_from`. Arbitration tie-breaks on `steps_taken`, favoring agents that have acted less. |
 | **Inconsistency between boards and ground truth** | Internal state (inventory, handoff role) drifts relative to board content. | Agent handoff times out locally but its entry stays on the board. | `_clear_handoff` calls `remove_by_sender`; the responder removes its own stuck entry when it takes another's. TTLs provide a floor even if a bug leaves an orphan. |
 
-**Summary.** The centralized component is a deliberate choice for coordination quality, and the risks above are real in the general case. In this project they are bounded by: sequential stepping, atomic take, per-sender/per-position dedup, TTLs, capacity caps, position refresh, arbitration tie-breaks, and a fallback path (the peer-to-peer direct-message protocol) that still converges when the board is off. Coherence failures are not *prevented by assumption* — they are contained by explicit safeguards, and the worst degradation observed is the loss of efficiency documented in §7.1, not a paralyzed system.
+The dual board is a deliberate design choice for coordination quality. The risks above are real in the general case but are contained here by sequential stepping, atomic take, per-sender/per-position dedup, TTLs, capacity caps, position refresh, and arbitration tie-breaks. There is also a fallback: disabling the boards falls back to the peer-to-peer direct-message protocol, which still converges. Coherence failures are not prevented by assumption — they are bounded by explicit safeguards, and the worst observed degradation is the efficiency gap documented in §7.1, not a stalled system.
 
 ### 5.8 Edge Cases Handled
 
@@ -300,7 +290,6 @@ The dual message board is a **shared, writable data structure** — effectively 
 | Agent becomes un-stuck naturally (finds waste) | Request auto-removed via `remove_by_sender` in `_post_to_boards` |
 | Handoff partner moved since posting | Position refreshed each step; responder navigates to latest position |
 
----
 
 ## 6. Evaluation Criteria & Metrics
 
@@ -321,70 +310,67 @@ def is_done(self) -> bool:
 | `Internal board activity` | Handoff requests posted, taken, costs |
 | `External board activity` | Waste-sharing requests posted, taken, costs |
 
----
 
 ## 7. Results
 
-*Run `python 18_robot_mission_MAS2026/run.py` to reproduce.*
-
 ### 7.1 Benchmark — Heap Board vs. Direct-Message Protocol
 
-Both modes are toggled by the **"Heap communication"** button in the Flask UI. In both cases agents communicate and both modes are expected to converge — the comparison is about **coordination efficiency**, not about whether the mission completes. Same seeds (1, 2, 3, 7, 11), 3+3+3 robots, grid 15×10, 600-step cap, 5 seeds averaged.
+Both modes are toggled by the "Heap communication" button in the Flask UI. Both communicate and both converge; the comparison is about coordination efficiency. Setup: seeds (1, 2, 3, 7, 11), 3+3+3 robots, grid 15×10, 800-step cap, 5 seeds averaged.
 
-| Initial green wastes | Mode | Avg. completion step | min / max | Avg. disposed (/ max) |
+| Initial green wastes | Mode | Avg. completion step | min / max | Disposed / max |
 |:---:|:---:|:---:|:---:|:---:|
-| **8**  | Heap board (dashboard)   | **84.8**  | 76 / 95   | **2.0 / 2** ✓ |
-| 8      | Direct messages | 169.4     | 95 / 357  | 2.0 / 2 ✓     |
-| **12** | Heap board (dashboard)   | **99.6**  | 72 / 132  | **3.0 / 3** ✓ |
-| 12     | Direct messages | 185.0     | 94 / 322  | 3.0 / 3 ✓     |
-| **16** | Heap board (dashboard)   | 198.4     | 152 / 247 | 4.0 / 4 ✓     |
-| 16     | Direct messages | **183.8** | 105 / 287 | 4.0 / 4 ✓     |
+| **8**  | Heap board   | **74.2**  | 64 / 82   | 2 / 2 ✓ |
+| 8      | Direct messages | 163.8  | 88 / 304  | 2 / 2 ✓ |
+| **12** | Heap board   | **135.2** | 100 / 199 | 3 / 3 ✓ |
+| 12     | Direct messages | 194.2  | 135 / 257 | 3 / 3 ✓ |
+| **16** | Heap board   | **120.4** | 93 / 139  | 4 / 4 ✓ |
+| 16     | Direct messages | 181.4  | 107 / 241 | 4 / 4 ✓ |
+| **24** | Heap board   | **134.0** | 117 / 153 | 6 / 6 ✓ |
+| 24     | Direct messages | 191.0  | 119 / 338 | 6 / 6 ✓ |
+| **32** | Heap board   | **179.8** | 121 / 339 | 8 / 8 ✓ |
+| 32     | Direct messages | 223.8  | 211 / 241 | 8 / 8 ✓ |
 
 ### 7.2 Interpretation
 
-- **Both modes complete the mission.** The direct-message protocol is a working coordination mechanism on its own — agents exchange stuck / waste-available signals peer-to-peer and resolve the same structural deadlocks. The heap board is not a correctness requirement but a **visibility and arbitration layer** on top of the same principle.
-- **Heap board is typically faster on small / medium loads.** At N=8 and N=12 the dashboard mode is roughly 2× faster on average and has a much tighter spread (smaller gap between min and max). The board surfaces every pending request at once, so cost-based arbitration picks the nearest agent globally rather than relying on whoever happens to receive a direct message first.
-- **Variance matters more than the mean.** Direct-message runs have large tails (357 steps at N=8, 322 at N=12) because a stuck signal can be missed if the right responder isn't in range. The board removes that luck — every eligible agent re-evaluates it every step until it is taken.
-- **The advantage narrows at higher N.** At N=16, both modes are within noise of each other (5 seeds is not a large sample). With more waste in play, percept-driven behavior dominates anyway — fewer deadlocks to resolve through communication, so the routing advantage of the board matters less.
-- **What changes, what doesn't.** Switching off the dashboard removes the central visualization and the arbitration layer, but the fleet keeps coordinating through the direct-message protocol. The trade-off is **efficiency and predictability**, not **capability**.
+Both modes complete the mission across all tested configurations. The direct-message protocol resolves the same structural deadlocks peer-to-peer; the heap board adds a global arbitration layer on top of the same principle, not a correctness requirement.
 
----
+The heap board is consistently faster in average across all waste counts tested (1.2× to 2.2×). At small loads (N=8), the gap is most pronounced: the board surfaces every pending request to all eligible agents simultaneously, so the nearest one wins, whereas direct messaging depends on the right responder being within broadcast range. This also explains why direct-message runs have larger tails (304 steps at N=8, 338 at N=24) — a stuck signal can simply be missed.
+
+At N=32 the spread reverses: direct-message runs are tighter (211–241 steps) while the heap board has one outlier at 339. With many wastes in play, percept-driven pick-up dominates and deadlocks are rarer, so the arbitration advantage matters less — but the heap board still wins on average.
+
+Disabling the board removes the arbitration layer but the fleet keeps coordinating through direct messages. The trade-off is efficiency and predictability, not capability.
+
 
 ## 8. How to Run
 
-### Prerequisites
+### Installation
 
 ```bash
-pip install mesa solara matplotlib flask flask-cors
+pip install -r requirements.txt
 ```
 
-### Flask Web UI (recommended)
+### Flask web UI (recommended)
 
 ```bash
 cd 18_robot_mission_MAS2026
 python app.py
 ```
 
-Opens at `http://127.0.0.1:5000` with:
-- Animated grid with robot labels (g1, g2, y1, y2, r1, r2…)
-- Live message board visualization (Internal + External)
-- Activity log showing who took which request and at what cost
-- Chart.js time series of waste counts
+Opens at `http://127.0.0.1:5000`. The interface shows the animated grid with robot labels, live message board state (internal and external), an activity log of who took which request and at what cost, and a Chart.js time series of waste counts. The "Heap communication" toggle switches between the two coordination modes without restarting.
 
-### Interactive Visualisation (SolaraViz)
+### SolaraViz interactive interface
 
 ```bash
 solara run 18_robot_mission_MAS2026/server.py
 ```
 
-### Headless Benchmark (terminal)
+### Headless runner (terminal output + matplotlib chart)
 
 ```bash
 python 18_robot_mission_MAS2026/run.py --wastes 12 --seed 42
-python 18_robot_mission_MAS2026/run.py --wastes 10 --steps 500 --seed 42
+python 18_robot_mission_MAS2026/run.py --wastes 12 --steps 500 --no-plot
 ```
 
----
 
 ## 9. Project Structure
 
